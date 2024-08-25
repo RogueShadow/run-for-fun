@@ -1,0 +1,34 @@
+[package]
+name = "run_for_fun"
+version = "0.2.3"
+authors = ["Rogue Shadow <adam@granseal.net>"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "olc_code_jam_2024_lib"
+
+[dependencies]
+wasm-bindgen = "0.2.92"
+iyes_perf_ui = { version = "0.3.0", features = [] }
+bevy = {version = "0.14.1", features = ["mp3","symphonia-wav"]}
+bevy_reflect = "0.14.1"
+rand = "0.8.5"
+bevy_ecs_tilemap = "0.14.0"
+bevy_ecs_ldtk = "0.10.0"
+bevy_rapier2d = { version = "0.27.0", features = ["wasm-bindgen", "enhanced-determinism", "debug-render-2d"]}
+log = "0.4.22"
+
+[profile.dev]
+
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+panic = "abort"
+strip = "symbols"
+
