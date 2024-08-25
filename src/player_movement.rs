@@ -34,6 +34,14 @@ impl PlayerMovement {
     }
 }
 
+pub fn update_character_position_from_velocity(
+    mut player_query: Query<(&mut KinematicCharacterController, &PlayerMovement), With<Player>>,
+) {
+    if let Ok((mut controller, movement)) = player_query.get_single_mut() {
+        controller.translation = Some(movement.velocity);
+    }
+}
+
 pub fn update_movement_component(
     mut entities: Query<(
         &mut PlayerMovement,

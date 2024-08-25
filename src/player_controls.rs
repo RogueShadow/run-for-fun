@@ -177,14 +177,14 @@ pub fn update_player_animation(
     time: Res<Time>,
 ) {
     if let Ok((mut sprite, mut atlas, state, mut animation, mut timer)) = player.get_single_mut() {
-        animation.current = match state.animation_state {
+        animation.set_current(match state.animation_state {
             AnimationState::Idle => 0,
             AnimationState::Walking => 1,
             AnimationState::Running => 2,
             AnimationState::Crouching => 3,
             AnimationState::Jumping => 4,
             AnimationState::CrouchWalking => 5,
-        };
+        });
         sprite.flip_x = match state.direction {
             AnimationDirection::Left => true,
             AnimationDirection::Right => false,

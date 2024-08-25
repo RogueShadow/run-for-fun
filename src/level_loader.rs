@@ -381,7 +381,7 @@ pub fn build_collision_boxes(
                                 layout: texture_atlas_layout.clone(),
                                 index: 4,
                             },
-                            AnimationIndices { first: 4, last: 7 },
+                            AnimationIndices::new(4, 7),
                             AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
                         ));
                         cmds.spawn((
@@ -403,7 +403,7 @@ pub fn build_collision_boxes(
                                 layout: texture_atlas_layout.clone(),
                                 index: 0,
                             },
-                            AnimationIndices { first: 0, last: 3 },
+                            AnimationIndices::new(0, 3),
                             AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
                         ));
                         info!("Loaded flags");

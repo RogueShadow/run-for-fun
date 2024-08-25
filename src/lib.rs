@@ -1,7 +1,10 @@
+mod animation;
 mod camera;
 mod level_loader;
 mod player_controls;
 mod player_movement;
+mod sound;
+use animation::*;
 use bevy::asset::AssetMetaCheck;
 use bevy::audio::{PlaybackMode, Volume};
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
@@ -14,6 +17,7 @@ use iyes_perf_ui::prelude::*;
 use level_loader::*;
 use player_controls::*;
 use player_movement::*;
+use sound::*;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
@@ -27,24 +31,6 @@ pub struct Finish;
 pub struct RaceTime(Time);
 #[derive(Component)]
 pub struct Player;
-
-#[derive(Event)]
-pub enum Play {
-    Jump,
-    Walk,
-    Finish,
-    Land,
-    Start,
-}
-
-#[derive(Resource)]
-pub struct Sounds {
-    jump: Handle<AudioSource>,
-    walk: Handle<AudioSource>,
-    finish: Handle<AudioSource>,
-    start: Handle<AudioSource>,
-    land: Handle<AudioSource>,
-}
 
 #[wasm_bindgen(start)]
 pub fn run() {
@@ -93,86 +79,6 @@ impl Plugin for RunGame {
                 move_camera,
             ),
         );
-    }
-}
-
-#[derive(Component)]
-struct AnimationIndices {
-    first: usize,
-    last: usize,
-}
-#[derive(Component)]
-pub struct AnimationAtlas {
-    animations: Vec<Animation>,
-    current: usize,
-}
-impl AnimationAtlas {
-    pub fn new(animations: impl Into<Vec<Animation>>) -> Self {
-        Self {
-            animations: animations.into(),
-            current: 0,
-        }
-    }
-    pub fn next(&mut self) {
-        if let Some(anim) = self.animations.get_mut(self.current) {
-            anim.next();
-        }
-    }
-    pub fn current(&self) -> usize {
-        if let Some(anim) = self.animations.get(self.current) {
-            anim.current()
-        } else {
-            0
-        }
-    }
-}
-impl Default for AnimationAtlas {
-    fn default() -> Self {
-        Self {
-            animations: vec![],
-            current: 0,
-        }
-    }
-}
-
-pub struct Animation {
-    sprites: Vec<usize>,
-    position: usize,
-}
-impl Animation {
-    pub fn new(sprites: impl Into<Vec<usize>>) -> Self {
-        Self {
-            sprites: sprites.into(),
-            position: 0,
-        }
-    }
-    pub fn next(&mut self) {
-        self.position += 1;
-        if self.position >= self.sprites.len() {
-            self.position = 0;
-        }
-    }
-    pub fn current(&self) -> usize {
-        self.sprites[self.position]
-    }
-}
-
-#[derive(Component, Deref, DerefMut, Default)]
-pub struct AnimationTimer(Timer);
-
-fn animate_sprite(
-    time: Res<Time>,
-    mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
-) {
-    for (indices, mut timer, mut atlas) in &mut query {
-        timer.tick(time.delta());
-        if timer.just_finished() {
-            atlas.index = if atlas.index == indices.last {
-                indices.first
-            } else {
-                atlas.index + 1
-            };
-        }
     }
 }
 
@@ -285,29 +191,4 @@ fn setup(
     cmds.insert_resource(sounds);
     cmds.observe(play_sounds);
     cmds.observe(player_touched_flags);
-}
-
-fn play_sounds(trigger: Trigger<Play>, mut commands: Commands, sounds: Res<Sounds>) {
-    let source = match trigger.event() {
-        Play::Jump => sounds.jump.clone_weak(),
-        Play::Walk => sounds.walk.clone_weak(),
-        Play::Finish => sounds.finish.clone_weak(),
-        Play::Land => sounds.land.clone_weak(),
-        Play::Start => sounds.start.clone_weak(),
-    };
-    commands.spawn(AudioSourceBundle {
-        source,
-        settings: PlaybackSettings {
-            mode: PlaybackMode::Despawn,
-            ..default()
-        },
-    });
-}
-
-fn update_character_position_from_velocity(
-    mut player_query: Query<(&mut KinematicCharacterController, &PlayerMovement), With<Player>>,
-) {
-    if let Ok((mut controller, movement)) = player_query.get_single_mut() {
-        controller.translation = Some(movement.velocity);
-    }
 }
