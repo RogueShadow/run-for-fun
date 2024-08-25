@@ -1,6 +1,5 @@
 use crate::*;
 use bevy::prelude::*;
-use bevy::sprite::Anchor;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_rapier2d::prelude::*;
@@ -12,7 +11,7 @@ impl Default for LoadedPhysics {
     fn default() -> Self {
         Self {
             0: vec![],
-            1: Timer::new(Duration::from_secs_f32(5.0), TimerMode::Once),
+            1: Timer::new(Duration::from_secs_f32(1.0), TimerMode::Once),
         }
     }
 }
@@ -99,16 +98,15 @@ pub fn build_collision_boxes(
         if let Some(map) = map_assets.get(handle) {
             let level = map
                 .as_standalone()
-                .find_raw_level_by_level_selection(&level_selection);
+                .find_loaded_level_by_level_selection(&level_selection);
             if level.is_none() {
                 info!("Failed to load level.");
                 return;
             }
             let level = level.unwrap(); // We just checked, should be fine.
+
             let entities = level
-                .layer_instances
-                .as_ref()
-                .unwrap()
+                .layer_instances()
                 .iter()
                 .filter(|d| d.identifier == "Entities")
                 .next();
@@ -118,9 +116,7 @@ pub fn build_collision_boxes(
             }
             let entities = entities.unwrap();
             let tiles = level
-                .layer_instances
-                .as_ref()
-                .unwrap()
+                .layer_instances()
                 .iter()
                 .filter(|d| d.identifier == "Tiles")
                 .next();
@@ -139,7 +135,7 @@ pub fn build_collision_boxes(
 
             let mut player_pos = player_start.px.as_vec2();
             player_pos.y *= -1.0;
-            player_pos.y += level.px_hei as f32;
+            player_pos.y += *level.px_hei() as f32;
 
             cmds.trigger(SpawnPlayerEvent {
                 position: player_pos,
@@ -209,7 +205,7 @@ pub fn build_collision_boxes(
                     .for_each(|p| {
                         let mut pos = p.px.as_vec2();
                         pos.y *= -1.0;
-                        pos.y += level.px_hei as f32;
+                        pos.y += *level.px_hei() as f32;
                         cmds.trigger(SpawnBoxEvent { position: pos });
                     });
 
@@ -221,7 +217,7 @@ pub fn build_collision_boxes(
                     .map(|m| {
                         let mut pos = m.px.as_vec2();
                         pos.y *= -1.0;
-                        pos.y += level.px_hei as f32;
+                        pos.y += *level.px_hei() as f32;
                         (pos, m.get_string_field("message"))
                     })
                     .collect::<Vec<_>>();
@@ -254,13 +250,13 @@ pub fn build_collision_boxes(
                     (Some(start), Some(end)) => {
                         let mut start_pos = start.px.as_vec2();
                         start_pos.y *= -1.0;
-                        start_pos.y += level.px_hei as f32;
+                        start_pos.y += *level.px_hei() as f32;
                         let start_size = vec2(start.width as f32, start.height as f32);
                         start_pos.x += start_size.x / 2.0;
                         start_pos.y -= start_size.y / 2.0;
                         let mut end_pos = end.px.as_vec2();
                         end_pos.y *= -1.0;
-                        end_pos.y += level.px_hei as f32;
+                        end_pos.y += *level.px_hei() as f32;
                         let end_size = vec2(end.width as f32, end.height as f32);
                         end_pos.x += end_size.x / 2.0;
                         end_pos.y -= end_size.y / 2.0;
