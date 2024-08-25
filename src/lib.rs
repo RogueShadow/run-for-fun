@@ -84,7 +84,8 @@ impl Plugin for RunGame {
             Update,
             (
                 animate_sprite,
-                detect_race_status,
+                detect_flags,
+                advance_race_timer,
                 update_character_position_from_velocity,
                 update_movement_component.before(update_character_position_from_velocity),
                 update_player_states,
@@ -175,61 +176,74 @@ fn animate_sprite(
     }
 }
 
-fn detect_race_status(
+fn advance_race_timer(mut race_timer: Query<&mut RaceTime>, time: Res<Time>) {
+    if let Ok(mut race_timer) = race_timer.get_single_mut() {
+        race_timer.0.advance_by(time.delta());
+    }
+}
+
+#[derive(Event)]
+pub enum TouchedFlag {
+    Start,
+    Finish,
+}
+
+fn player_touched_flags(
+    trigger: Trigger<TouchedFlag>,
+    mut text_query: Query<&mut Text, With<PlayerText>>,
+    mut commands: Commands,
+    mut race_time_query: Query<&mut RaceTime>,
+    player: Query<Entity, With<Player>>,
+) {
+    let player_entity = player.single();
+    let mut msg = |msg: &str| {
+        if let Ok(mut text) = text_query.get_single_mut() {
+            text.sections[0].value = msg.into();
+        }
+    };
+    match trigger.event() {
+        TouchedFlag::Start => {
+            if let Ok(_) = race_time_query.get_single_mut() {
+                msg("You've already started, why you back here?!");
+            } else {
+                commands.trigger(Play::Start);
+                msg("Run to the finish!");
+                commands
+                    .entity(player_entity)
+                    .insert(RaceTime(Time::default()));
+            }
+        }
+        TouchedFlag::Finish => {
+            if let Ok(time) = race_time_query.get_single_mut() {
+                commands.trigger(Play::Finish);
+                msg(&format!("You've finished! {:.3}", time.0.elapsed_seconds()));
+                commands.entity(player_entity).remove::<RaceTime>();
+            }
+        }
+    }
+}
+
+fn detect_flags(
     player: Query<Entity, With<Player>>,
     mut collision_events: EventReader<CollisionEvent>,
     start: Query<Entity, With<Start>>,
     finish: Query<Entity, With<Finish>>,
-    mut race_time: Query<&mut RaceTime>,
     mut commands: Commands,
-    time: Res<Time>,
-    mut text_q: Query<&mut Text, With<PlayerText>>,
 ) {
-    if let Ok(mut race_timer) = race_time.get_single_mut() {
-        race_timer.0.advance_by(time.delta());
-    }
+    let player_entity = if let Ok(entity) = player.get_single() {
+        entity
+    } else {
+        return;
+    };
     for collision in collision_events.read() {
-        if let Ok(player_entity) = player.get_single() {
-            match collision {
-                CollisionEvent::Started(e1, e2, _) => {
-                    if [*e1, *e2].contains(&start.single()) && [*e1, *e2].contains(&player_entity) {
-                        if let Ok(_) = race_time.get_single_mut() {
-                            info!("You've already started, why you back here?!");
-                            if let Ok(mut text) = text_q.get_single_mut() {
-                                text.sections[0].value =
-                                    "You've already started, why you back here?!".to_string();
-                            } else {
-                                error!("Couldn't get player's text.")
-                            }
-                        } else {
-                            info!("Run to the finish!");
-                            commands.trigger(Play::Start);
-                            if let Ok(mut text) = text_q.get_single_mut() {
-                                text.sections[0].value = "Run to the finish!".to_string();
-                            } else {
-                                error!("Couldn't get player's text.")
-                            }
-                            commands
-                                .entity(player_entity)
-                                .insert(RaceTime(Time::default()));
-                        }
-                    } else if [*e1, *e2].contains(&finish.single()) {
-                        if let Ok(time) = race_time.get_single_mut() {
-                            info!("You've finished! {:.3}", time.0.elapsed_seconds());
-                            commands.trigger(Play::Finish);
-                            if let Ok(mut text) = text_q.get_single_mut() {
-                                text.sections[0].value =
-                                    format!("You've finished! {:.3}", time.0.elapsed_seconds());
-                            } else {
-                                error!("Couldn't get player's text.")
-                            }
-                            commands.entity(player_entity).remove::<RaceTime>();
-                        } else {
-                            info!("Go back to the start, you haven't started!");
-                        }
-                    }
-                }
-                _ => {}
+        if let CollisionEvent::Started(e1, e2, _) = collision {
+            if ![*e1, *e2].contains(&player_entity) {
+                return;
+            }
+            if [*e1, *e2].contains(&start.single()) {
+                commands.trigger(TouchedFlag::Start);
+            } else if [*e1, *e2].contains(&finish.single()) {
+                commands.trigger(TouchedFlag::Finish);
             }
         }
     }
@@ -270,6 +284,7 @@ fn setup(
     };
     cmds.insert_resource(sounds);
     cmds.observe(play_sounds);
+    cmds.observe(player_touched_flags);
 }
 
 fn play_sounds(trigger: Trigger<Play>, mut commands: Commands, sounds: Res<Sounds>) {
