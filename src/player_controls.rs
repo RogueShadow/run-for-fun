@@ -1,5 +1,4 @@
-use crate::{AnimationAtlas, AnimationTimer, Player, Sounds};
-use bevy::audio::PlaybackMode;
+use crate::{AnimationAtlas, AnimationTimer, Play, Player};
 use bevy::prelude::*;
 use bevy_rapier2d::control::KinematicCharacterControllerOutput;
 use bevy_rapier2d::render::DebugRenderContext;
@@ -63,7 +62,6 @@ pub fn update_player_controls(
     mut debug: ResMut<DebugRenderContext>,
     mut commands: Commands,
     ui: Query<Entity, With<PerfUiRoot>>,
-    sounds: Res<Sounds>,
 ) {
     if step_timer.mode() != TimerMode::Repeating {
         step_timer.set_mode(TimerMode::Repeating);
@@ -91,13 +89,7 @@ pub fn update_player_controls(
             controls.right = false
         }
         if input.any_just_pressed([KeyCode::KeyW, KeyCode::ArrowUp, KeyCode::Space]) {
-            commands.spawn(AudioBundle {
-                source: sounds.jump.clone(),
-                settings: PlaybackSettings {
-                    mode: PlaybackMode::Remove,
-                    ..default()
-                },
-            });
+            commands.trigger(Play::Jump);
         }
         if input.any_pressed([
             KeyCode::KeyA,
@@ -109,13 +101,7 @@ pub fn update_player_controls(
                 if state.animation_state == AnimationState::Walking {
                     step_timer.tick(time.delta());
                     if step_timer.just_finished() {
-                        commands.spawn(AudioBundle {
-                            source: sounds.walk.clone(),
-                            settings: PlaybackSettings {
-                                mode: PlaybackMode::Remove,
-                                ..default()
-                            },
-                        });
+                        commands.trigger(Play::Walk);
                     }
                 }
             }

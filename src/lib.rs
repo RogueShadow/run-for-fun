@@ -3,7 +3,7 @@ mod level_loader;
 mod player_controls;
 mod player_movement;
 use bevy::asset::AssetMetaCheck;
-use bevy::audio::PlaybackMode;
+use bevy::audio::{PlaybackMode, Volume};
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::math::vec2;
 use bevy::prelude::*;
@@ -27,6 +27,15 @@ pub struct Finish;
 pub struct RaceTime(Time);
 #[derive(Component)]
 pub struct Player;
+
+#[derive(Event)]
+pub enum Play {
+    Jump,
+    Walk,
+    Finish,
+    Land,
+    Start,
+}
 
 #[derive(Resource)]
 pub struct Sounds {
@@ -174,7 +183,6 @@ fn detect_race_status(
     mut race_time: Query<&mut RaceTime>,
     mut commands: Commands,
     time: Res<Time>,
-    sounds: Res<Sounds>,
     mut text_q: Query<&mut Text, With<PlayerText>>,
 ) {
     if let Ok(mut race_timer) = race_time.get_single_mut() {
@@ -195,13 +203,7 @@ fn detect_race_status(
                             }
                         } else {
                             info!("Run to the finish!");
-                            commands.spawn(AudioBundle {
-                                source: sounds.start.clone(),
-                                settings: PlaybackSettings {
-                                    mode: PlaybackMode::Remove,
-                                    ..default()
-                                },
-                            });
+                            commands.trigger(Play::Start);
                             if let Ok(mut text) = text_q.get_single_mut() {
                                 text.sections[0].value = "Run to the finish!".to_string();
                             } else {
@@ -214,13 +216,7 @@ fn detect_race_status(
                     } else if [*e1, *e2].contains(&finish.single()) {
                         if let Ok(time) = race_time.get_single_mut() {
                             info!("You've finished! {:.3}", time.0.elapsed_seconds());
-                            commands.spawn(AudioBundle {
-                                source: sounds.finish.clone(),
-                                settings: PlaybackSettings {
-                                    mode: PlaybackMode::Remove,
-                                    ..default()
-                                },
-                            });
+                            commands.trigger(Play::Finish);
                             if let Ok(mut text) = text_q.get_single_mut() {
                                 text.sections[0].value =
                                     format!("You've finished! {:.3}", time.0.elapsed_seconds());
@@ -259,6 +255,7 @@ fn setup(
         source: assets.load("Caketown 1.mp3"),
         settings: PlaybackSettings {
             mode: PlaybackMode::Loop,
+            volume: Volume::new(0.5),
             ..default()
         },
     });
@@ -272,6 +269,24 @@ fn setup(
         land: assets.load("45_Landing_01.wav"),
     };
     cmds.insert_resource(sounds);
+    cmds.observe(play_sounds);
+}
+
+fn play_sounds(trigger: Trigger<Play>, mut commands: Commands, sounds: Res<Sounds>) {
+    let source = match trigger.event() {
+        Play::Jump => sounds.jump.clone_weak(),
+        Play::Walk => sounds.walk.clone_weak(),
+        Play::Finish => sounds.finish.clone_weak(),
+        Play::Land => sounds.land.clone_weak(),
+        Play::Start => sounds.start.clone_weak(),
+    };
+    commands.spawn(AudioSourceBundle {
+        source,
+        settings: PlaybackSettings {
+            mode: PlaybackMode::Despawn,
+            ..default()
+        },
+    });
 }
 
 fn update_character_position_from_velocity(

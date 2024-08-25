@@ -29,6 +29,8 @@ https://opengameart.org/content/won-orchestral-winning-jingle
 
 https://opengameart.org/content/platformer-jumping-sounds
 
+Builds just as well for web as desktop. No changes needed.
+
 Troubleshooting notes:
 
 If you have unusually low fps, try disconnecting any gamepad, especially if it's a ps5 with remote play. For reasons. Leave a comment if this actually happened to you. No, I don't even use gamepads, it's just something with the engine...
