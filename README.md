@@ -1,69 +1,34 @@
-<div align="center">
+(OLC CodeJam 2024 entry)
 
-  <h1><code>wasm-pack-template</code></h1>
+There is an extra 5 seconds of delay when loading, to help with issues loading I haven't resolved yet.
 
-  <strong>A template for kick starting a Rust and WebAssembly project using <a href="https://github.com/rustwasm/wasm-pack">wasm-pack</a>.</strong>
+Controls are wasd and arrow keys, jumping is also space.
 
-  <p>
-    <a href="https://travis-ci.org/rustwasm/wasm-pack-template"><img src="https://img.shields.io/travis/rustwasm/wasm-pack-template.svg?style=flat-square" alt="Build Status" /></a>
-  </p>
+1 - fps display
 
-  <h3>
-    <a href="https://rustwasm.github.io/docs/wasm-pack/tutorials/npm-browser-packages/index.html">Tutorial</a>
-    <span> | </span>
-    <a href="https://discordapp.com/channels/442252698964721669/443151097398296587">Chat</a>
-  </h3>
+2 - physics debug layer
 
-  <sub>Built with 🦀🕸 by <a href="https://rustwasm.github.io/">The Rust and WebAssembly Working Group</a></sub>
-</div>
+Touch the green flag to start a timer.
 
-## About
+Touch the red flag to see your time.
 
-[**📚 Read this template tutorial! 📚**][template-docs]
 
-This template is designed for compiling Rust libraries into WebAssembly and
-publishing the resulting package to NPM.
+Try again, no need to reload. This is an open world race... lol.
 
-Be sure to check out [other `wasm-pack` tutorials online][tutorials] for other
-templates and usages of `wasm-pack`.
+Art from opengameart.org
 
-[tutorials]: https://rustwasm.github.io/docs/wasm-pack/tutorials/index.html
-[template-docs]: https://rustwasm.github.io/docs/wasm-pack/tutorials/npm-browser-packages/index.html
+https://opengameart.org/content/arcade-platformer-assets
 
-## 🚴 Usage
+Sfx and Music from opengameart.org
 
-### 🐑 Use `cargo generate` to Clone this Template
+https://opengameart.org/content/start-sounds-1
 
-[Learn more about `cargo generate` here.](https://github.com/ashleygwilliams/cargo-generate)
+https://opengameart.org/content/caketown-cuteplayful
 
-```
-cargo generate --git https://github.com/rustwasm/wasm-pack-template.git --name my-project
-cd my-project
-```
+https://opengameart.org/content/won-orchestral-winning-jingle
 
-### 🛠️ Build with `wasm-pack build`
+https://opengameart.org/content/platformer-jumping-sounds
 
-```
-wasm-pack build
-```
+Troubleshooting notes:
 
-### 🔬 Test in Headless Browsers with `wasm-pack test`
-
-```
-wasm-pack test --headless --firefox
-```
-
-### 🎁 Publish to NPM with `wasm-pack publish`
-
-```
-wasm-pack publish
-```
-
-## 🔋 Batteries Included
-
-* [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) for communicating
-  between WebAssembly and JavaScript.
-* [`console_error_panic_hook`](https://github.com/rustwasm/console_error_panic_hook)
-  for logging panic messages to the developer console.
-* [`wee_alloc`](https://github.com/rustwasm/wee_alloc), an allocator optimized
-  for small code size.
+If you have unusually low fps, try disconnecting any gamepad, especially if it's a ps5 with remote play. For reasons. Leave a comment if this actually happened to you. No, I don't even use gamepads, it's just something with the engine...
