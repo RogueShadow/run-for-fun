@@ -15,11 +15,11 @@ Touch the red flag to see your time.
 
 Try again, no need to reload. This is an open world race... lol.
 
-Art from opengameart.org
+Art from https://opengameart.org/
 
 https://opengameart.org/content/arcade-platformer-assets
 
-Sfx and Music from opengameart.org
+Sfx and Music from https://opengameart.org/
 
 https://opengameart.org/content/start-sounds-1
 
