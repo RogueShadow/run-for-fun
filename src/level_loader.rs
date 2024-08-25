@@ -83,9 +83,7 @@ pub fn build_collision_boxes(
     data: Query<&TileMetadata>,
     query: Query<(Entity, &Handle<LdtkProject>)>,
     map_assets: Res<Assets<LdtkProject>>,
-    asset_server: Res<AssetServer>,
     level_selection: Res<LevelSelection>,
-    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     time: Res<Time>,
 ) {
     if !loaded.1.finished() {
@@ -143,70 +141,8 @@ pub fn build_collision_boxes(
             player_pos.y *= -1.0;
             player_pos.y += level.px_hei as f32;
 
-            let texture = asset_server.load("character.png");
-            let layout = TextureAtlasLayout::from_grid(UVec2::new(32, 32), 3, 2, None, None);
-            let texture_atlas_layout = texture_atlas_layouts.add(layout);
-            cmds.spawn((
-                Follow,
-                Player,
-                PlayerMovement::default(),
-                PlayerControls::default(),
-                PlayerState::default(),
-                AnimationAtlas::new([
-                    Animation::new([0]),
-                    Animation::new([0, 1, 2, 3]),
-                    Animation::new([0, 1, 2, 3, 4]),
-                    Animation::new([0]),
-                    Animation::new([5]),
-                    Animation::new([0, 1, 2, 3]),
-                ]),
-                AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-                SpriteBundle {
-                    sprite: Sprite {
-                        flip_x: false,
-                        custom_size: None,
-                        rect: None,
-                        anchor: Anchor::Custom(vec2(0.0, -0.25)),
-                        ..default()
-                    },
-                    texture,
-                    transform: Transform::from_xyz(player_pos.x, player_pos.y, 100.0),
-                    ..default()
-                },
-                TextureAtlas {
-                    layout: texture_atlas_layout,
-                    index: 2,
-                },
-                RigidBody::KinematicVelocityBased,
-                Collider::cuboid(8.0, 7.75),
-                LockedAxes::ROTATION_LOCKED,
-                KinematicCharacterController {
-                    translation: None,
-                    offset: CharacterLength::Relative(0.01),
-                    normal_nudge_factor: 0.001,
-                    slide: true,
-                    snap_to_ground: Some(CharacterLength::Relative(0.05)),
-                    apply_impulse_to_dynamic_bodies: true,
-                    ..default()
-                },
-            ))
-            .with_children(|c| {
-                c.spawn((
-                    PlayerText,
-                    Text2dBundle {
-                        text: Text::from_section(
-                            "Hello World",
-                            TextStyle {
-                                font: Default::default(),
-                                font_size: 40.0,
-                                color: Color::srgb(0.0, 0.0, 0.0),
-                            },
-                        )
-                        .with_justify(JustifyText::Center),
-                        transform: Transform::from_xyz(0.0, 20.0, 0.0).with_scale(Vec3::splat(0.1)),
-                        ..default()
-                    },
-                ));
+            cmds.trigger(SpawnPlayerEvent {
+                position: player_pos,
             });
 
             if let Some((level_entity, tile_storage, tilemap_gridsize, _)) = q_tile
@@ -265,32 +201,17 @@ pub fn build_collision_boxes(
                 info!("Finished Building Colliders for level.");
 
                 // Get and Spawn Boxes
-                let red_block = asset_server.load("red_block.png");
-                let box_positions = entities
+
+                entities
                     .entity_instances
                     .iter()
                     .filter(|x| x.identifier == "Physics_block")
-                    .map(|p| {
+                    .for_each(|p| {
                         let mut pos = p.px.as_vec2();
                         pos.y *= -1.0;
                         pos.y += level.px_hei as f32;
-                        pos
-                    })
-                    .collect::<Vec<_>>();
-
-                for p in box_positions {
-                    cmds.spawn((
-                        SpriteBundle {
-                            texture: red_block.clone(),
-                            sprite: Sprite { ..default() },
-                            transform: Transform::from_xyz(p.x, p.y, 100.0),
-                            ..default()
-                        },
-                        RigidBody::Dynamic,
-                        Collider::cuboid(8.0, 8.0),
-                        Friction::coefficient(0.5),
-                    ));
-                }
+                        cmds.trigger(SpawnBoxEvent { position: pos });
+                    });
 
                 //Get and spawn messages.
                 let messages = entities
@@ -312,25 +233,10 @@ pub fn build_collision_boxes(
                         }
                         Ok(m) => m,
                     };
-
-                    cmds.spawn(Text2dBundle {
-                        text: Text {
-                            sections: vec![TextSection::new(
-                                msg,
-                                TextStyle {
-                                    color: Color::srgb(0.0, 0.0, 0.0),
-                                    font_size: 64.0,
-                                    ..default()
-                                },
-                            )],
-                            justify: JustifyText::Center,
-                            ..default()
-                        },
-                        text_anchor: Anchor::Center,
-                        transform: Transform::from_xyz(pos.x, pos.y, 200.0)
-                            .with_scale(Vec3::splat(0.1)),
-                        ..default()
-                    });
+                    cmds.trigger(SpawnMessageEvent {
+                        position: pos,
+                        message: msg.to_string(),
+                    })
                 }
 
                 //Get and Spawn start,stop locations
@@ -358,54 +264,17 @@ pub fn build_collision_boxes(
                         let end_size = vec2(end.width as f32, end.height as f32);
                         end_pos.x += end_size.x / 2.0;
                         end_pos.y -= end_size.y / 2.0;
-                        let texture = asset_server.load("flag_red_green.png");
-                        let layout =
-                            TextureAtlasLayout::from_grid(UVec2::new(125, 250), 4, 2, None, None);
-                        let texture_atlas_layout = texture_atlas_layouts.add(layout);
-                        cmds.spawn((
-                            Start,
-                            Collider::cuboid(start_size.x / 2.0, start_size.y / 2.0),
-                            Sensor,
-                            ActiveCollisionTypes::KINEMATIC_STATIC,
-                            ActiveEvents::COLLISION_EVENTS,
-                            SpriteBundle {
-                                texture: texture.clone(),
-                                transform: Transform::from_xyz(start_pos.x, start_pos.y, 150.0),
-                                sprite: Sprite {
-                                    custom_size: Some(start_size),
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            TextureAtlas {
-                                layout: texture_atlas_layout.clone(),
-                                index: 4,
-                            },
-                            AnimationIndices::new(4, 7),
-                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-                        ));
-                        cmds.spawn((
-                            Finish,
-                            Collider::cuboid(end_size.x / 2.0, end_size.y / 2.0),
-                            Sensor,
-                            ActiveCollisionTypes::KINEMATIC_STATIC,
-                            ActiveEvents::COLLISION_EVENTS,
-                            SpriteBundle {
-                                texture: texture.clone(),
-                                sprite: Sprite {
-                                    custom_size: Some(end_size),
-                                    ..default()
-                                },
-                                transform: Transform::from_xyz(end_pos.x, end_pos.y, 150.0),
-                                ..default()
-                            },
-                            TextureAtlas {
-                                layout: texture_atlas_layout.clone(),
-                                index: 0,
-                            },
-                            AnimationIndices::new(0, 3),
-                            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-                        ));
+
+                        cmds.trigger(SpawnFlagEvent {
+                            flag: FlagType::Start,
+                            position: start_pos,
+                            size: start_size,
+                        });
+                        cmds.trigger(SpawnFlagEvent {
+                            flag: FlagType::Finish,
+                            position: end_pos,
+                            size: end_size,
+                        });
                         info!("Loaded flags");
                     }
                     _ => {
