@@ -2,9 +2,11 @@ use crate::animation::{Animation, AnimationAtlas, AnimationIndices, AnimationTim
 use crate::camera::Follow;
 use crate::player_controls::{PlayerControls, PlayerState};
 use crate::player_movement::PlayerMovement;
+use crate::sound::Sounds;
 use crate::Play;
 use crate::RaceTime;
 use crate::{Finish, Player, PlayerText, Start};
+use bevy::audio::{PlaybackMode, Volume};
 use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
@@ -257,4 +259,22 @@ pub fn player_touched_flags(
             }
         }
     }
+}
+
+#[derive(Event)]
+pub struct StartBackgroundMusic;
+
+pub fn start_background_music(
+    _: Trigger<StartBackgroundMusic>,
+    sounds: Res<Sounds>,
+    mut commands: Commands,
+) {
+    commands.spawn(AudioBundle {
+        source: sounds.bgm.clone_weak(),
+        settings: PlaybackSettings {
+            mode: PlaybackMode::Loop,
+            volume: Volume::new(0.25),
+            ..default()
+        },
+    });
 }

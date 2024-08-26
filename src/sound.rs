@@ -12,6 +12,7 @@ pub enum Play {
 
 #[derive(Resource)]
 pub struct Sounds {
+    pub bgm: Handle<AudioSource>,
     pub jump: Handle<AudioSource>,
     pub walk: Handle<AudioSource>,
     pub finish: Handle<AudioSource>,

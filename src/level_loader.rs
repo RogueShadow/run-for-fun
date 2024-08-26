@@ -278,6 +278,8 @@ pub fn build_collision_boxes(
                     }
                 }
                 loaded.0.push(entity); // Don't try to load again.
+
+                cmds.trigger(StartBackgroundMusic);
             } else {
                 error!("Couldn't load level data.");
             }

@@ -7,7 +7,6 @@ mod player_movement;
 mod sound;
 use animation::*;
 use bevy::asset::AssetMetaCheck;
-use bevy::audio::{PlaybackMode, Volume};
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::math::vec2;
 use bevy::prelude::*;
@@ -131,18 +130,9 @@ fn setup(
     //Setup Physics
     rapier_config.gravity.y = -200.0;
 
-    // Play some music
-    cmds.spawn(AudioBundle {
-        source: assets.load("Caketown 1.mp3"),
-        settings: PlaybackSettings {
-            mode: PlaybackMode::Loop,
-            volume: Volume::new(0.5),
-            ..default()
-        },
-    });
-
     //Load some Sounds
     let sounds = Sounds {
+        bgm: assets.load("Caketown 1.mp3"),
         jump: assets.load("jump_01.wav"),
         walk: assets.load("03_Step_grass_03.wav"),
         finish: assets.load("Won!.wav"),
@@ -156,4 +146,5 @@ fn setup(
     cmds.observe(spawn_box);
     cmds.observe(spawn_message);
     cmds.observe(spawn_flags);
+    cmds.observe(start_background_music);
 }
