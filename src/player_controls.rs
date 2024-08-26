@@ -1,4 +1,4 @@
-use crate::{AnimationAtlas, AnimationTimer, Play, Player};
+use crate::{Play, Player, RustAnimationAtlas};
 use bevy::prelude::*;
 use bevy_rapier2d::control::KinematicCharacterControllerOutput;
 use bevy_rapier2d::render::DebugRenderContext;
@@ -54,7 +54,7 @@ impl Default for PlayerControls {
 }
 
 pub fn update_player_controls(
-    mut step_timer: Local<AnimationTimer>,
+    mut step_timer: Local<Timer>,
     time: Res<Time>,
     mut controls: Query<&mut PlayerControls>,
     state: Query<&PlayerState>,
@@ -164,19 +164,9 @@ pub fn update_player_states(
 }
 
 pub fn update_player_animation(
-    mut player: Query<
-        (
-            &mut Sprite,
-            &mut TextureAtlas,
-            &PlayerState,
-            &mut AnimationAtlas,
-            &mut AnimationTimer,
-        ),
-        With<Player>,
-    >,
-    time: Res<Time>,
+    mut player: Query<(&mut Sprite, &PlayerState, &mut RustAnimationAtlas), With<Player>>,
 ) {
-    if let Ok((mut sprite, mut atlas, state, mut animation, mut timer)) = player.get_single_mut() {
+    if let Ok((mut sprite, state, mut animation)) = player.get_single_mut() {
         animation.set_current(match state.animation_state {
             AnimationState::Idle => 0,
             AnimationState::Walking => 1,
@@ -189,10 +179,5 @@ pub fn update_player_animation(
             AnimationDirection::Left => true,
             AnimationDirection::Right => false,
         };
-        timer.tick(time.delta());
-        if timer.just_finished() {
-            animation.next();
-            atlas.index = animation.current();
-        }
     }
 }

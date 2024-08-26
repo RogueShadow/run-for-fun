@@ -70,7 +70,8 @@ impl Plugin for RunGame {
         app.add_systems(
             Update,
             (
-                animate_sprite,
+                update_rustanimation,
+                update_rustanimationatlas,
                 detect_flags,
                 advance_race_timer,
                 update_character_position_from_velocity,

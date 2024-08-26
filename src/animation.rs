@@ -1,37 +1,23 @@
 use bevy::prelude::*;
+use std::time::Duration;
 
 #[derive(Component)]
-pub struct AnimationIndices {
-    first: usize,
-    last: usize,
-}
-impl AnimationIndices {
-    pub fn new(first: usize, last: usize) -> Self {
-        Self { first, last }
-    }
-}
-#[derive(Component)]
-pub struct AnimationAtlas {
-    animations: Vec<Animation>,
+pub struct RustAnimationAtlas {
+    animations: Vec<RustAnimation>,
     current: usize,
 }
-impl AnimationAtlas {
-    pub fn new(animations: impl Into<Vec<Animation>>) -> Self {
+impl RustAnimationAtlas {
+    pub fn new(animations: impl Into<Vec<RustAnimation>>) -> Self {
         Self {
             animations: animations.into(),
             current: 0,
-        }
-    }
-    pub fn next(&mut self) {
-        if let Some(anim) = self.animations.get_mut(self.current) {
-            anim.next();
         }
     }
     pub fn current(&self) -> usize {
         if let Some(anim) = self.animations.get(self.current) {
             anim.current()
         } else {
-            0
+            panic!("Animation index out of bounds in atlas.")
         }
     }
     pub fn set_current(&mut self, index: usize) {
@@ -41,8 +27,14 @@ impl AnimationAtlas {
             error!("Invalid index");
         }
     }
+    pub fn tick(&mut self, delta: Duration) {
+        self.animations[self.current].tick(delta);
+    }
+    pub fn just_finished(&self) -> bool {
+        self.animations[self.current].just_finished()
+    }
 }
-impl Default for AnimationAtlas {
+impl Default for RustAnimationAtlas {
     fn default() -> Self {
         Self {
             animations: vec![],
@@ -51,43 +43,124 @@ impl Default for AnimationAtlas {
     }
 }
 
-pub struct Animation {
-    sprites: Vec<usize>,
-    position: usize,
-}
-impl Animation {
-    pub fn new(sprites: impl Into<Vec<usize>>) -> Self {
-        Self {
-            sprites: sprites.into(),
-            position: 0,
+pub fn update_rustanimation(
+    time: Res<Time>,
+    mut query: Query<(&mut RustAnimation, &mut TextureAtlas)>,
+) {
+    for (mut animation, mut atlas) in &mut query {
+        animation.tick(time.delta());
+        if animation.just_finished() {
+            atlas.index = animation.current();
         }
     }
-    pub fn next(&mut self) {
-        self.position += 1;
-        if self.position >= self.sprites.len() {
-            self.position = 0;
+}
+pub fn update_rustanimationatlas(
+    time: Res<Time>,
+    mut query: Query<(&mut RustAnimationAtlas, &mut TextureAtlas)>,
+) {
+    for (mut animation, mut atlas) in &mut query {
+        animation.tick(time.delta());
+        if animation.just_finished() {
+            atlas.index = animation.current();
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct RustAnimation {
+    animation_type: RustAnimationType,
+    time: Duration,
+    step: Duration,
+    just_finished: bool,
+}
+impl RustAnimation {
+    pub fn new(animation_type: RustAnimationType, step: f32) -> Self {
+        Self {
+            animation_type,
+            time: Duration::default(),
+            step: Duration::from_secs_f32(step),
+            just_finished: false,
+        }
+    }
+    pub fn range(start: usize, end: usize, step: f32) -> Self {
+        let animation_type = RustAnimationType::range(start, end);
+        Self::new(animation_type, step)
+    }
+    pub fn list(value: impl Into<Vec<usize>>, step: f32) -> Self {
+        let animation_type = RustAnimationType::list(value);
+        Self::new(animation_type, step)
+    }
+    pub fn tick(&mut self, duration: Duration) {
+        self.time += duration;
+        if self.time >= self.step {
+            self.time = Duration::default();
+            self.animation_type.next();
+            self.just_finished = true;
+        } else {
+            self.just_finished = false;
         }
     }
     pub fn current(&self) -> usize {
-        self.sprites[self.position]
+        self.animation_type.current()
+    }
+    pub fn just_finished(&self) -> bool {
+        self.just_finished
     }
 }
-
-#[derive(Component, Deref, DerefMut, Default)]
-pub struct AnimationTimer(pub Timer);
-
-pub fn animate_sprite(
-    time: Res<Time>,
-    mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
-) {
-    for (indices, mut timer, mut atlas) in &mut query {
-        timer.tick(time.delta());
-        if timer.just_finished() {
-            atlas.index = if atlas.index == indices.last {
-                indices.first
-            } else {
-                atlas.index + 1
-            };
+pub enum RustAnimationType {
+    IndexList {
+        indices: Vec<usize>,
+        position: usize,
+    },
+    IndexRange {
+        start: usize,
+        end: usize,
+        position: usize,
+    },
+}
+impl RustAnimationType {
+    pub fn range(start: usize, end: usize) -> Self {
+        Self::IndexRange {
+            start,
+            end,
+            position: start,
+        }
+    }
+    pub fn list(value: impl Into<Vec<usize>>) -> Self {
+        let value = value.into();
+        if value.is_empty() {
+            panic!("List must not be empty.")
+        }
+        let first = value[0];
+        Self::IndexList {
+            indices: value,
+            position: first,
+        }
+    }
+    pub fn next(&mut self) {
+        match self {
+            Self::IndexList { indices, position } => {
+                *position += 1;
+                if *position >= indices.len() {
+                    *position = 0;
+                }
+            }
+            Self::IndexRange {
+                start,
+                end,
+                position,
+            } => {
+                *position += 1;
+                if position >= end {
+                    *position = *start
+                }
+            }
+        }
+    }
+    pub fn current(&self) -> usize {
+        match self {
+            RustAnimationType::IndexList { indices, position } => indices[*position],
+            RustAnimationType::IndexRange { position, .. } => *position,
         }
     }
 }

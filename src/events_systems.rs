@@ -1,4 +1,4 @@
-use crate::animation::{Animation, AnimationAtlas, AnimationIndices, AnimationTimer};
+use crate::animation::{RustAnimation, RustAnimationAtlas};
 use crate::camera::Follow;
 use crate::player_controls::{PlayerControls, PlayerState};
 use crate::player_movement::PlayerMovement;
@@ -71,8 +71,7 @@ pub fn spawn_flags(
                     layout: texture_atlas_layout.clone(),
                     index: 4,
                 },
-                AnimationIndices::new(4, 7),
-                AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+                RustAnimation::range(4, 7, 0.1),
             ));
         }
         FlagType::Finish => {
@@ -95,8 +94,7 @@ pub fn spawn_flags(
                     layout: texture_atlas_layout.clone(),
                     index: 0,
                 },
-                AnimationIndices::new(0, 3),
-                AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+                RustAnimation::range(0, 3, 0.1),
             ));
         }
     }
@@ -162,15 +160,14 @@ pub fn spawn_player(
             PlayerMovement::default(),
             PlayerControls::default(),
             PlayerState::default(),
-            AnimationAtlas::new([
-                Animation::new([0]),
-                Animation::new([0, 1, 2, 3]),
-                Animation::new([0, 1, 2, 3, 4]),
-                Animation::new([0]),
-                Animation::new([5]),
-                Animation::new([0, 1, 2, 3]),
+            RustAnimationAtlas::new([
+                RustAnimation::list([0], 0.1),
+                RustAnimation::list([0, 1, 2, 3], 0.1),
+                RustAnimation::list([0, 1, 2, 3, 4], 0.1),
+                RustAnimation::list([0], 0.1),
+                RustAnimation::list([5], 0.1),
+                RustAnimation::list([0, 1, 2, 3], 0.1),
             ]),
-            AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
             SpriteBundle {
                 sprite: Sprite {
                     flip_x: false,
