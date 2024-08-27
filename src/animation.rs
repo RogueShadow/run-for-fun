@@ -55,9 +55,7 @@ pub fn update_rustanimation(
 ) {
     for (mut animation, mut atlas) in &mut query {
         animation.tick(time.delta());
-        if animation.just_finished() {
-            atlas.index = animation.current();
-        }
+        atlas.index = animation.current();
     }
 }
 pub fn update_rustanimationatlas(
@@ -66,9 +64,7 @@ pub fn update_rustanimationatlas(
 ) {
     for (mut animation, mut atlas) in &mut query {
         animation.tick(time.delta());
-        if animation.just_finished() {
-            atlas.index = animation.current();
-        }
+        atlas.index = animation.current();
     }
 }
 
@@ -76,29 +72,33 @@ pub fn update_rustanimationatlas(
 pub struct RustAnimation {
     animation_type: RustAnimationType,
     time: Duration,
-    step: Duration,
     just_finished: bool,
 }
 impl RustAnimation {
-    pub fn new(animation_type: RustAnimationType, step: f32) -> Self {
+    pub fn new(animation_type: RustAnimationType) -> Self {
         Self {
             animation_type,
             time: Duration::default(),
-            step: Duration::from_secs_f32(step),
             just_finished: false,
         }
     }
+    pub fn variable_timing_list(value: impl Into<Vec<usize>>, timing: impl Into<Vec<f32>>) -> Self {
+        Self::new(RustAnimationType::variable_timing_list(value, timing))
+    }
+    pub fn variable_timing_range(start: usize, end: usize, timing: impl Into<Vec<f32>>) -> Self {
+        Self::new(RustAnimationType::variable_timing_range(start, end, timing))
+    }
     pub fn range(start: usize, end: usize, step: f32) -> Self {
-        let animation_type = RustAnimationType::range(start, end);
-        Self::new(animation_type, step)
+        let animation_type = RustAnimationType::range(start, end, step);
+        Self::new(animation_type)
     }
     pub fn list(value: impl Into<Vec<usize>>, step: f32) -> Self {
-        let animation_type = RustAnimationType::list(value);
-        Self::new(animation_type, step)
+        let animation_type = RustAnimationType::list(value, step);
+        Self::new(animation_type)
     }
     pub fn tick(&mut self, duration: Duration) {
         self.time += duration;
-        if self.time >= self.step {
+        if self.time >= self.step() {
             self.time = Duration::default();
             self.animation_type.next();
             self.just_finished = true;
@@ -112,27 +112,57 @@ impl RustAnimation {
     pub fn just_finished(&self) -> bool {
         self.just_finished
     }
+    pub fn step(&self) -> Duration {
+        match &self.animation_type {
+            RustAnimationType::IndexList { step, .. } => *step,
+            RustAnimationType::VariableTimingList {
+                timing, position, ..
+            } => timing[*position],
+        }
+    }
 }
+#[derive(Debug)]
 pub enum RustAnimationType {
     IndexList {
         indices: Vec<usize>,
         position: usize,
+        step: Duration,
     },
-    IndexRange {
-        start: usize,
-        end: usize,
+    VariableTimingList {
+        indices: Vec<usize>,
+        timing: Vec<Duration>,
         position: usize,
     },
 }
 impl RustAnimationType {
-    pub fn range(start: usize, end: usize) -> Self {
-        Self::IndexRange {
-            start,
-            end,
-            position: start,
+    // constructors
+    pub fn variable_timing_list(value: impl Into<Vec<usize>>, timing: impl Into<Vec<f32>>) -> Self {
+        let value = value.into();
+        let timing = timing.into();
+
+        if value.is_empty() {
+            panic!("List must not be empty.")
+        }
+        if value.len() != timing.len() {
+            panic!("Must have same number of indices and timings")
+        }
+        let first = value[0];
+        Self::VariableTimingList {
+            indices: value,
+            position: first,
+            timing: timing
+                .iter()
+                .map(|t| Duration::from_secs_f32(*t))
+                .collect::<Vec<_>>(),
         }
     }
-    pub fn list(value: impl Into<Vec<usize>>) -> Self {
+    pub fn variable_timing_range(start: usize, end: usize, timing: impl Into<Vec<f32>>) -> Self {
+        Self::variable_timing_list((start..=end).collect::<Vec<_>>(), timing)
+    }
+    pub fn range(start: usize, end: usize, step: f32) -> Self {
+        Self::list((start..=end).collect::<Vec<_>>(), step)
+    }
+    pub fn list(value: impl Into<Vec<usize>>, step: f32) -> Self {
         let value = value.into();
         if value.is_empty() {
             panic!("List must not be empty.")
@@ -141,32 +171,53 @@ impl RustAnimationType {
         Self::IndexList {
             indices: value,
             position: first,
+            step: Duration::from_secs_f32(step),
         }
     }
     pub fn next(&mut self) {
         match self {
-            Self::IndexList { indices, position } => {
-                *position += 1;
-                if *position >= indices.len() {
+            Self::IndexList {
+                indices, position, ..
+            } => {
+                if *position + 1 >= indices.len() {
                     *position = 0;
+                } else {
+                    *position += 1
                 }
             }
-            Self::IndexRange {
-                start,
-                end,
-                position,
+            RustAnimationType::VariableTimingList {
+                indices, position, ..
             } => {
-                *position += 1;
-                if position >= end {
-                    *position = *start
+                if *position + 1 >= indices.len() {
+                    *position = 0;
+                } else {
+                    *position += 1
                 }
             }
         }
     }
     pub fn current(&self) -> usize {
         match self {
-            RustAnimationType::IndexList { indices, position } => indices[*position],
-            RustAnimationType::IndexRange { position, .. } => *position,
+            RustAnimationType::IndexList {
+                indices, position, ..
+            } => {
+                if let Some(index) = indices.get(*position) {
+                    *index
+                } else {
+                    warn!("Index was out of bounds for {:?}", self);
+                    indices[0]
+                }
+            }
+            RustAnimationType::VariableTimingList {
+                indices, position, ..
+            } => {
+                if let Some(index) = indices.get(*position) {
+                    *index
+                } else {
+                    warn!("Index was out of bounds for {:?}", self);
+                    indices[0]
+                }
+            }
         }
     }
 }
