@@ -62,6 +62,7 @@ impl Plugin for RunGame {
         app.add_plugins(LdtkPlugin);
         app.add_plugins(FrameTimeDiagnosticsPlugin);
         app.add_plugins(PerfUiPlugin);
+        app.add_plugins(RustAnimationPlugin);
         app.insert_resource(LevelSelection::Uid(0));
         app.add_systems(Startup, setup_camera);
         app.add_systems(Startup, setup);
@@ -70,8 +71,6 @@ impl Plugin for RunGame {
         app.add_systems(
             Update,
             (
-                update_rustanimation,
-                update_rustanimationatlas,
                 detect_flags,
                 advance_race_timer,
                 update_character_position_from_velocity,

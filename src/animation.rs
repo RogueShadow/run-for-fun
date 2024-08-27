@@ -28,9 +28,15 @@ impl RustAnimationAtlas {
         }
     }
     pub fn tick(&mut self, delta: Duration) {
+        if self.animations.is_empty() {
+            return;
+        }
         self.animations[self.current].tick(delta);
     }
     pub fn just_finished(&self) -> bool {
+        if self.animations.is_empty() {
+            return false;
+        };
         self.animations[self.current].just_finished()
     }
 }
@@ -162,5 +168,13 @@ impl RustAnimationType {
             RustAnimationType::IndexList { indices, position } => indices[*position],
             RustAnimationType::IndexRange { position, .. } => *position,
         }
+    }
+}
+
+pub struct RustAnimationPlugin;
+
+impl Plugin for RustAnimationPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, (update_rustanimation, update_rustanimationatlas));
     }
 }
