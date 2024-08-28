@@ -239,3 +239,75 @@ impl Plugin for RustAnimationPlugin {
         app.add_systems(Update, (update_rustanimation, update_rustanimationatlas));
     }
 }
+
+#[derive(Debug)]
+pub struct TweenAnimationFrame {
+    location: Option<Vec2>,
+    rotation: Option<(f32, Vec2)>,
+    scale: Option<Vec2>,
+}
+impl TweenAnimationFrame {
+    pub fn loc(mut self, loc: Vec2) -> Self {
+        self.location = Some(loc);
+        self
+    }
+    pub fn rot(mut self, rot: f32, origin: Vec2) -> Self {
+        self.rotation = Some((rot, origin));
+        self
+    }
+    pub fn scale(mut self, scale: Vec2) -> Self {
+        self.scale = Some(scale);
+        self
+    }
+}
+impl Default for TweenAnimationFrame {
+    fn default() -> Self {
+        Self {
+            location: None,
+            rotation: None,
+            scale: None,
+        }
+    }
+}
+pub struct TweenAnimation {
+    start_time: Duration,
+    key_frames: Vec<(Duration, TweenAnimationFrame)>,
+}
+impl TweenAnimation {
+    pub fn new(frames: impl Into<Vec<(Duration, TweenAnimationFrame)>>) -> Self {
+        let mut frames = frames.into();
+        if frames.is_empty() {
+            panic!("There must be at least one frame.");
+        }
+        frames.sort_by(|a, b| a.0.cmp(&b.0));
+        println!("{:?}", frames);
+        Self {
+            start_time: Duration::default(),
+            key_frames: frames,
+        }
+    }
+    pub fn start(&mut self, time: Time) {
+        self.start_time = time.elapsed();
+    }
+    pub fn frame(&self, time: Time) -> TweenAnimationFrame {
+        let mut frame = TweenAnimationFrame::default();
+        let elapsed = time.elapsed() - self.start_time;
+        for (_, f) in self.key_frames.iter().filter(|(t, _)| t < &elapsed) {
+            let TweenAnimationFrame {
+                location,
+                rotation,
+                scale,
+            } = f;
+            if location.is_some() {
+                frame.location = *location;
+            }
+            if rotation.is_some() {
+                frame.rotation = *rotation;
+            }
+            if scale.is_some() {
+                frame.scale = *scale;
+            }
+        }
+        frame
+    }
+}
