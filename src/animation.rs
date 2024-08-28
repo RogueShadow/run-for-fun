@@ -82,10 +82,10 @@ impl RustAnimation {
             just_finished: false,
         }
     }
-    pub fn variable_timing_list(value: impl Into<Vec<usize>>, timing: impl Into<Vec<f32>>) -> Self {
+    fn variable_timing_list(value: impl Into<Vec<usize>>, timing: impl Into<Vec<f32>>) -> Self {
         Self::new(RustAnimationType::variable_timing_list(value, timing))
     }
-    pub fn variable_timing_range(start: usize, end: usize, timing: impl Into<Vec<f32>>) -> Self {
+    fn variable_timing_range(start: usize, end: usize, timing: impl Into<Vec<f32>>) -> Self {
         Self::new(RustAnimationType::variable_timing_range(start, end, timing))
     }
     pub fn range(start: usize, end: usize, step: f32) -> Self {
@@ -95,6 +95,16 @@ impl RustAnimation {
     pub fn list(value: impl Into<Vec<usize>>, step: f32) -> Self {
         let animation_type = RustAnimationType::list(value, step);
         Self::new(animation_type)
+    }
+    pub fn with_timings(self, timing: impl Into<Vec<f32>>) -> Self {
+        match self.animation_type {
+            RustAnimationType::IndexList { indices, .. } => {
+                Self::variable_timing_list(indices, timing)
+            }
+            RustAnimationType::VariableTimingList { indices, .. } => {
+                Self::variable_timing_list(indices, timing)
+            }
+        }
     }
     pub fn tick(&mut self, duration: Duration) {
         self.time += duration;
