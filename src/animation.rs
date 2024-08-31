@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
+use rand::distributions::Slice;
 use std::time::Duration;
 
 #[derive(Component)]
@@ -236,78 +238,137 @@ pub struct RustAnimationPlugin;
 
 impl Plugin for RustAnimationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (update_rustanimation, update_rustanimationatlas));
+        app.add_systems(
+            Update,
+            (
+                update_rustanimation,
+                update_rustanimationatlas,
+                update_tween_sprite,
+            ),
+        );
     }
 }
 
-#[derive(Debug)]
-pub struct TweenAnimationFrame {
-    location: Option<Vec2>,
-    rotation: Option<(f32, Vec2)>,
-    scale: Option<Vec2>,
+pub fn linear_path<T: Interpolation<T>>(values: &[T], time: f32) -> T {
+    if values.len() < 2 {
+        panic!("Must have at least 2 values");
+    }
+    let steps = values.len() as f32 - 1.0;
+    let step_size = 1.0 / steps;
+    let index = (time / step_size).floor() as usize;
+    let start_time = index as f32 * step_size;
+    let current_time = time - start_time;
+    let t = current_time / step_size;
+    values[index].linear(&values[index + 1], t)
 }
-impl TweenAnimationFrame {
-    pub fn loc(mut self, loc: Vec2) -> Self {
-        self.location = Some(loc);
-        self
+pub fn spline_path<T: Interpolation<T>>(values: &[T], time: f32) -> T {
+    if values.len() < 2 {
+        panic!("Must have at least 2 values");
     }
-    pub fn rot(mut self, rot: f32, origin: Vec2) -> Self {
-        self.rotation = Some((rot, origin));
-        self
+    let steps = values.len() as f32 - 1.0;
+    let step_size = 1.0 / steps;
+    let index = (time / step_size).floor() as usize;
+    let start_time = index as f32 * step_size;
+    let current_time = time - start_time;
+    let t = current_time / step_size;
+    values[index].spline(&values[index + 1], 0.0, 1.0, t)
+}
+pub trait Interpolation<T> {
+    fn linear(&self, next: &T, time: f32) -> T;
+    fn spline(&self, next: &T, m0: f32, m1: f32, time: f32) -> T;
+}
+impl Interpolation<f32> for f32 {
+    fn linear(&self, next: &f32, time: f32) -> f32 {
+        match time {
+            time if time <= 0.0 => self.to_owned(),
+            time if time >= 1.0 => next.to_owned(),
+            time => (1.0 - time) * self + time * next,
+        }
     }
-    pub fn scale(mut self, scale: Vec2) -> Self {
-        self.scale = Some(scale);
-        self
+    fn spline(&self, next: &f32, m0: f32, m1: f32, time: f32) -> f32 {
+        match time {
+            time if time <= 0.0 => self.to_owned(),
+            time if time >= 1.0 => next.to_owned(),
+            time => {
+                let t3 = time.powi(3);
+                let t2 = time.powi(2);
+                let t = time;
+                (2.0 * t3 - 3.0 * t2 + 1.0) * self
+                    + (t3 - 2.0 * t2 + t) * m0
+                    + (-2.0 * t3 + 3.0 * t2) * next
+                    + (t3 - t2) * m1
+            }
+        }
     }
 }
-impl Default for TweenAnimationFrame {
-    fn default() -> Self {
+impl Interpolation<Vec2> for Vec2 {
+    fn linear(&self, next: &Vec2, time: f32) -> Vec2 {
+        Vec2::new(self.x.linear(&next.x, time), self.y.linear(&next.y, time))
+    }
+    fn spline(&self, next: &Vec2, m0: f32, m1: f32, time: f32) -> Vec2 {
+        Vec2::new(
+            self.x.spline(&next.x, m0, m1, time),
+            self.y.spline(&next.y, m0, m1, time),
+        )
+    }
+}
+
+#[derive(Component)]
+pub struct TweenSprite {
+    start: f32,
+    length: f32,
+    path: Vec<Vec2>,
+    finished: bool,
+}
+impl TweenSprite {
+    pub fn new(path: impl Into<Vec<Vec2>>, start: f32, length: f32) -> Self {
+        let path = path.into();
+        if path.len() < 2 {
+            panic!("Must have at least 2 points in path.")
+        }
         Self {
-            location: None,
-            rotation: None,
-            scale: None,
+            start,
+            length,
+            path,
+            finished: false,
         }
+    }
+    pub fn linear(&mut self, elapsed: f32) -> Vec2 {
+        let time = elapsed - self.start;
+        let time = time / self.length;
+        if time < 0.0 {
+            return self.path[0];
+        }
+        if time > 1.0 {
+            self.finished = true;
+            return *self.path.last().unwrap();
+        }
+        linear_path(self.path.as_slice(), time)
+    }
+    pub fn spline(&mut self, elapsed: f32) -> Vec2 {
+        let time = elapsed - self.start;
+        let time = time / self.length;
+        if time < 0.0 {
+            return self.path[0];
+        }
+        if time > 1.0 {
+            self.finished = true;
+            return *self.path.last().unwrap();
+        }
+        spline_path(self.path.as_slice(), time)
+    }
+    pub fn finished(&self) -> bool {
+        self.finished
     }
 }
-pub struct TweenAnimation {
-    start_time: Duration,
-    key_frames: Vec<(Duration, TweenAnimationFrame)>,
-}
-impl TweenAnimation {
-    pub fn new(frames: impl Into<Vec<(Duration, TweenAnimationFrame)>>) -> Self {
-        let mut frames = frames.into();
-        if frames.is_empty() {
-            panic!("There must be at least one frame.");
+
+pub fn update_tween_sprite(mut query: Query<(&mut Sprite, &mut TweenSprite)>, time: Res<Time>) {
+    for (mut sprite, mut tween) in query.iter_mut() {
+        let pos = tween.linear(time.elapsed_seconds());
+        sprite.anchor = Anchor::Custom(pos);
+        if tween.finished() {
+            tween.start = time.elapsed_seconds() + 2.0;
+            tween.finished = false;
         }
-        frames.sort_by(|a, b| a.0.cmp(&b.0));
-        println!("{:?}", frames);
-        Self {
-            start_time: Duration::default(),
-            key_frames: frames,
-        }
-    }
-    pub fn start(&mut self, time: Time) {
-        self.start_time = time.elapsed();
-    }
-    pub fn frame(&self, time: Time) -> TweenAnimationFrame {
-        let mut frame = TweenAnimationFrame::default();
-        let elapsed = time.elapsed() - self.start_time;
-        for (_, f) in self.key_frames.iter().filter(|(t, _)| t < &elapsed) {
-            let TweenAnimationFrame {
-                location,
-                rotation,
-                scale,
-            } = f;
-            if location.is_some() {
-                frame.location = *location;
-            }
-            if rotation.is_some() {
-                frame.rotation = *rotation;
-            }
-            if scale.is_some() {
-                frame.scale = *scale;
-            }
-        }
-        frame
     }
 }

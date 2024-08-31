@@ -20,6 +20,7 @@ use player_controls::*;
 use player_movement::*;
 use sound::*;
 use std::collections::HashMap;
+use std::time::Duration;
 use wasm_bindgen::prelude::*;
 
 #[derive(Component)]

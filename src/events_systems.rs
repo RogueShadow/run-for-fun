@@ -160,6 +160,14 @@ pub fn spawn_player(
             PlayerMovement::default(),
             PlayerControls::default(),
             PlayerState::default(),
+            // TweenSprite::new([
+            //                      vec2(0.0,-0.25),
+            //     vec2(2.0,2.0),
+            //     vec2(-2.0,2.0),
+            //     vec2(  -2.0, -2.0),
+            //     vec2(2.0,-2.0),
+            //     vec2(0.0,-0.25)
+            // ],5.0,1.0),
             RustAnimationAtlas::new([
                 RustAnimation::list([0], 0.1),
                 RustAnimation::list([0, 1, 2, 3], 0.1),
