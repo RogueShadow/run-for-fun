@@ -1,4 +1,4 @@
-use crate::animation::{RustAnimation, RustAnimationAtlas, Spline};
+use crate::animation::{circle_spline, RustAnimation, RustAnimationAtlas};
 use crate::camera::Follow;
 use crate::player_controls::{PlayerControls, PlayerState};
 use crate::player_movement::PlayerMovement;
@@ -158,17 +158,6 @@ pub fn spawn_player(
     let texture = assets.load("character.png");
     let layout = TextureAtlasLayout::from_grid(UVec2::new(32, 32), 3, 2, None, None);
     let texture_atlas_layout = texture_atlas_layouts.add(layout);
-    let points = (0..360)
-        .step_by(20)
-        .map(|x| {
-            let len = 16.0;
-            let x = (x as f32).to_radians();
-            let xpos = x.cos() * len;
-            let ypos = x.sin() * len;
-            Vec2::new(xpos, ypos)
-        })
-        .collect::<Vec<_>>();
-    let mut spline = Spline::new(points, true);
     commands
         .spawn((
             Follow,
@@ -176,7 +165,7 @@ pub fn spawn_player(
             PlayerMovement::default(),
             PlayerControls::default(),
             PlayerState::default(),
-            spline,
+            circle_spline(),
             RustAnimationAtlas::new([
                 RustAnimation::list([0], 0.1),
                 RustAnimation::list([0, 1, 2, 3], 0.1),

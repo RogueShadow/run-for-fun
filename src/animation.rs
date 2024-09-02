@@ -404,3 +404,17 @@ pub fn debug_spline(
         gizmos.linestrip_2d(line_points, Color::srgb(0.0, 0.0, 1.0));
     }
 }
+
+pub fn circle_spline() -> Spline {
+    let points = (0..360)
+        .step_by(40)
+        .map(|x| {
+            let len = 16.0;
+            let x = (x as f32).to_radians();
+            let xpos = x.cos() * len;
+            let ypos = x.sin() * len;
+            Vec2::new(xpos, ypos)
+        })
+        .collect::<Vec<_>>();
+    Spline::new(points, true)
+}
