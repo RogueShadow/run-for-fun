@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::render::camera::ScalingMode;
 
 #[derive(Component)]
 pub struct MainCamera;
@@ -10,7 +11,10 @@ pub fn setup_camera(mut commands: Commands) {
     commands.spawn((
         MainCamera,
         Camera2dBundle {
-            transform: Transform::default().with_scale(Vec3::splat(0.2)),
+            projection: OrthographicProjection {
+                scaling_mode: ScalingMode::FixedVertical(160.0),
+                ..default()
+            },
             ..default()
         },
     ));
