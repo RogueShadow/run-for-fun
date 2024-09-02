@@ -1,4 +1,4 @@
-use crate::animation::{RustAnimation, RustAnimationAtlas};
+use crate::animation::{RustAnimation, RustAnimationAtlas, Spline};
 use crate::camera::Follow;
 use crate::player_controls::{PlayerControls, PlayerState};
 use crate::player_movement::PlayerMovement;
@@ -13,6 +13,7 @@ use bevy::sprite::Anchor;
 use bevy_rapier2d::control::{CharacterLength, KinematicCharacterController};
 use bevy_rapier2d::dynamics::{LockedAxes, RigidBody};
 use bevy_rapier2d::geometry::{ActiveCollisionTypes, ActiveEvents, Collider, Friction, Sensor};
+use bevy_rapier2d::prelude::AdditionalMassProperties;
 
 #[derive(Event)]
 pub struct SpawnPlayerEvent {
@@ -129,17 +130,21 @@ pub fn spawn_box(
 ) {
     let spawn_event = trigger.event();
     let position = spawn_event.position;
-    let red_block = assets.load("red_block.png");
+    let red_block = assets.load("box.png");
     commands.spawn((
         SpriteBundle {
             texture: red_block.clone(),
-            sprite: Sprite { ..default() },
+            sprite: Sprite {
+                custom_size: Some(vec2(16.0, 16.0)),
+                ..default()
+            },
             transform: Transform::from_xyz(position.x, position.y, 100.0),
             ..default()
         },
         RigidBody::Dynamic,
         Collider::cuboid(8.0, 8.0),
         Friction::coefficient(0.5),
+        AdditionalMassProperties::Mass(3000.0),
     ));
 }
 pub fn spawn_player(
@@ -153,6 +158,17 @@ pub fn spawn_player(
     let texture = assets.load("character.png");
     let layout = TextureAtlasLayout::from_grid(UVec2::new(32, 32), 3, 2, None, None);
     let texture_atlas_layout = texture_atlas_layouts.add(layout);
+    let points = (0..360)
+        .step_by(20)
+        .map(|x| {
+            let len = 16.0;
+            let x = (x as f32).to_radians();
+            let xpos = x.cos() * len;
+            let ypos = x.sin() * len;
+            Vec2::new(xpos, ypos)
+        })
+        .collect::<Vec<_>>();
+    let mut spline = Spline::new(points, true);
     commands
         .spawn((
             Follow,
@@ -160,14 +176,7 @@ pub fn spawn_player(
             PlayerMovement::default(),
             PlayerControls::default(),
             PlayerState::default(),
-            // TweenSprite::new([
-            //                      vec2(0.0,-0.25),
-            //     vec2(2.0,2.0),
-            //     vec2(-2.0,2.0),
-            //     vec2(  -2.0, -2.0),
-            //     vec2(2.0,-2.0),
-            //     vec2(0.0,-0.25)
-            // ],5.0,1.0),
+            spline,
             RustAnimationAtlas::new([
                 RustAnimation::list([0], 0.1),
                 RustAnimation::list([0, 1, 2, 3], 0.1),
