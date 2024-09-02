@@ -84,14 +84,11 @@ pub fn build_collision_boxes(
     map_assets: Res<Assets<LdtkProject>>,
     level_selection: Res<LevelSelection>,
     time: Res<Time>,
-    camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
     if !loaded.1.finished() {
         loaded.1.tick(time.delta());
         return;
     }
-
-    let (camera, camera_transform) = camera.single();
 
     for (entity, handle) in query.iter() {
         if loaded.0.contains(&entity) {

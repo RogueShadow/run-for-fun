@@ -22,11 +22,11 @@ pub fn setup_camera(mut commands: Commands) {
 }
 
 pub fn move_camera(
-    mut cam_query: Query<(&Camera, &mut Transform), With<MainCamera>>,
+    mut cam_query: Query<(&mut Transform), With<MainCamera>>,
     follow: Query<&Transform, (With<Follow>, Without<MainCamera>)>,
     time: Res<Time>,
 ) {
-    if let Ok((camera, mut transform)) = cam_query.get_single_mut() {
+    if let Ok(mut transform) = cam_query.get_single_mut() {
         if let Ok(fol) = follow.get_single() {
             let dir = transform.translation.x - fol.translation.x;
             if dir.abs() > 16.0 {
