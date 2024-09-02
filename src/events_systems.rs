@@ -61,7 +61,7 @@ pub fn spawn_flags(
                 ActiveEvents::COLLISION_EVENTS,
                 SpriteBundle {
                     texture: texture.clone(),
-                    transform: Transform::from_xyz(position.x, position.y, 150.0),
+                    transform: Transform::from_xyz(position.x, position.y, 50.0),
                     sprite: Sprite {
                         custom_size: Some(size),
                         ..default()
@@ -84,7 +84,7 @@ pub fn spawn_flags(
                 ActiveEvents::COLLISION_EVENTS,
                 SpriteBundle {
                     texture: texture.clone(),
-                    transform: Transform::from_xyz(position.x, position.y, 150.0),
+                    transform: Transform::from_xyz(position.x, position.y, 50.0),
                     sprite: Sprite {
                         custom_size: Some(size),
                         ..default()
@@ -119,7 +119,7 @@ pub fn spawn_message(trigger: Trigger<SpawnMessageEvent>, mut commands: Commands
             ..default()
         },
         text_anchor: Anchor::Center,
-        transform: Transform::from_xyz(position.x, position.y, 200.0).with_scale(Vec3::splat(0.1)),
+        transform: Transform::from_xyz(position.x, position.y, 60.0).with_scale(Vec3::splat(0.1)),
         ..default()
     });
 }

@@ -6,10 +6,13 @@ use bevy_rapier2d::prelude::*;
 use std::time::Duration;
 
 #[derive(Resource)]
-pub struct LoadedPhysics(Vec<Entity>);
+pub struct LoadedPhysics(Vec<Entity>, Timer);
 impl Default for LoadedPhysics {
     fn default() -> Self {
-        Self { 0: vec![] }
+        Self {
+            0: vec![],
+            1: Timer::new(Duration::from_secs_f32(1.0), TimerMode::Once),
+        }
     }
 }
 
@@ -81,7 +84,15 @@ pub fn build_collision_boxes(
     map_assets: Res<Assets<LdtkProject>>,
     level_selection: Res<LevelSelection>,
     time: Res<Time>,
+    camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
+    if !loaded.1.finished() {
+        loaded.1.tick(time.delta());
+        return;
+    }
+
+    let (camera, camera_transform) = camera.single();
+
     for (entity, handle) in query.iter() {
         if loaded.0.contains(&entity) {
             continue;
