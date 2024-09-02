@@ -1,7 +1,11 @@
+use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
-use rand::distributions::Slice;
 use std::time::Duration;
+use std::vec::IntoIter;
+
+#[derive(Resource)]
+pub struct MousePosition(pub Vec2);
 
 #[derive(Component)]
 pub struct RustAnimationAtlas {
@@ -243,7 +247,7 @@ impl Plugin for RustAnimationPlugin {
             (
                 update_rustanimation,
                 update_rustanimationatlas,
-                update_tween_sprite,
+                debug_spline,
             ),
         );
     }
@@ -261,21 +265,9 @@ pub fn linear_path<T: Interpolation<T>>(values: &[T], time: f32) -> T {
     let t = current_time / step_size;
     values[index].linear(&values[index + 1], t)
 }
-pub fn spline_path<T: Interpolation<T>>(values: &[T], time: f32) -> T {
-    if values.len() < 2 {
-        panic!("Must have at least 2 values");
-    }
-    let steps = values.len() as f32 - 1.0;
-    let step_size = 1.0 / steps;
-    let index = (time / step_size).floor() as usize;
-    let start_time = index as f32 * step_size;
-    let current_time = time - start_time;
-    let t = current_time / step_size;
-    values[index].spline(&values[index + 1], 0.0, 1.0, t)
-}
+
 pub trait Interpolation<T> {
     fn linear(&self, next: &T, time: f32) -> T;
-    fn spline(&self, next: &T, m0: f32, m1: f32, time: f32) -> T;
 }
 impl Interpolation<f32> for f32 {
     fn linear(&self, next: &f32, time: f32) -> f32 {
@@ -285,90 +277,130 @@ impl Interpolation<f32> for f32 {
             time => (1.0 - time) * self + time * next,
         }
     }
-    fn spline(&self, next: &f32, m0: f32, m1: f32, time: f32) -> f32 {
-        match time {
-            time if time <= 0.0 => self.to_owned(),
-            time if time >= 1.0 => next.to_owned(),
-            time => {
-                let t3 = time.powi(3);
-                let t2 = time.powi(2);
-                let t = time;
-                (2.0 * t3 - 3.0 * t2 + 1.0) * self
-                    + (t3 - 2.0 * t2 + t) * m0
-                    + (-2.0 * t3 + 3.0 * t2) * next
-                    + (t3 - t2) * m1
-            }
-        }
-    }
 }
 impl Interpolation<Vec2> for Vec2 {
     fn linear(&self, next: &Vec2, time: f32) -> Vec2 {
         Vec2::new(self.x.linear(&next.x, time), self.y.linear(&next.y, time))
     }
-    fn spline(&self, next: &Vec2, m0: f32, m1: f32, time: f32) -> Vec2 {
-        Vec2::new(
-            self.x.spline(&next.x, m0, m1, time),
-            self.y.spline(&next.y, m0, m1, time),
-        )
-    }
 }
 
 #[derive(Component)]
-pub struct TweenSprite {
-    start: f32,
-    length: f32,
-    path: Vec<Vec2>,
-    finished: bool,
+pub struct Spline {
+    pub points: Vec<Vec2>,
+    pub looped: bool,
+    step: f32,
 }
-impl TweenSprite {
-    pub fn new(path: impl Into<Vec<Vec2>>, start: f32, length: f32) -> Self {
-        let path = path.into();
-        if path.len() < 2 {
-            panic!("Must have at least 2 points in path.")
+impl Spline {
+    pub fn new(points: impl Into<Vec<Vec2>>, looped: bool) -> Self {
+        let points = points.into();
+        if points.len() < 4 {
+            panic!("Need 4 or more points in the spline")
         }
         Self {
-            start,
-            length,
-            path,
-            finished: false,
+            points,
+            looped,
+            step: 0.05,
         }
     }
-    pub fn linear(&mut self, elapsed: f32) -> Vec2 {
-        let time = elapsed - self.start;
-        let time = time / self.length;
-        if time < 0.0 {
-            return self.path[0];
-        }
-        if time > 1.0 {
-            self.finished = true;
-            return *self.path.last().unwrap();
-        }
-        linear_path(self.path.as_slice(), time)
+    pub fn get_normalized_point(&self, t: f32) -> Vec2 {
+        self.get_point(t * self.points.len() as f32)
     }
-    pub fn spline(&mut self, elapsed: f32) -> Vec2 {
-        let time = elapsed - self.start;
-        let time = time / self.length;
-        if time < 0.0 {
-            return self.path[0];
+    pub fn get_point(&self, t: f32) -> Vec2 {
+        // Prevent panic from rounding to a index that's out of bounds.
+        let t = match (
+            self.looped,
+            t >= self.points.len() as f32,
+            t >= self.points.len() as f32 - 3.0,
+        ) {
+            (true, true, _) => self.points.len() as f32 - 0.00001,
+            (false, _, true) => self.points.len() as f32 - 3.00001,
+            _ => t,
+        };
+
+        let mut p1 = t.floor() as usize + 1;
+        let mut p2 = p1 + 1;
+        let mut p3 = p1 + 2;
+        let mut p0 = p1 - 1;
+
+        if self.looped {
+            p1 = t.floor() as usize;
+            p2 = (p1 + 1) % self.points.len();
+            p3 = (p2 + 1) % self.points.len();
+            p0 = if p1 >= 1 {
+                p1 - 1
+            } else {
+                self.points.len() - 1
+            };
         }
-        if time > 1.0 {
-            self.finished = true;
-            return *self.path.last().unwrap();
-        }
-        spline_path(self.path.as_slice(), time)
+
+        let t1 = t - t.floor();
+
+        let t2 = t1 * t1;
+        let t3 = t1 * t1 * t1;
+
+        let q1 = -t3 + 2.0 * t2 - t1;
+        let q2 = 3.0 * t3 - 5.0 * t2 + 2.0;
+        let q3 = -3.0 * t3 + 4.0 * t2 + t1;
+        let q4 = t3 - t2;
+
+        let tx = self.points[p0].x * q1
+            + self.points[p1].x * q2
+            + self.points[p2].x * q3
+            + self.points[p3].x * q4;
+        let ty = self.points[p0].y * q1
+            + self.points[p1].y * q2
+            + self.points[p2].y * q3
+            + self.points[p3].y * q4;
+
+        Vec2::new(tx, ty) * Vec2::new(0.5, 0.5)
     }
-    pub fn finished(&self) -> bool {
-        self.finished
+
+    fn get_points(&self, start: f32, end: f32) -> Vec<Vec2> {
+        let mut results = vec![];
+        let start = start;
+        let end = end * self.points.len() as f32;
+        let mut current = start;
+        while current < end {
+            results.push(self.get_point(current));
+            current += self.step;
+        }
+        results
+    }
+    pub fn set_step(&mut self, step: f32) {
+        if step <= 0.0 {
+            panic!("Step must not be negative or zero.")
+        }
+        self.step = step;
     }
 }
-
-pub fn update_tween_sprite(mut query: Query<(&mut Sprite, &mut TweenSprite)>, time: Res<Time>) {
-    for (mut sprite, mut tween) in query.iter_mut() {
-        let pos = tween.linear(time.elapsed_seconds());
-        sprite.anchor = Anchor::Custom(pos);
-        if tween.finished() {
-            tween.start = time.elapsed_seconds() + 2.0;
-            tween.finished = false;
+pub fn debug_spline(
+    mut splines: Query<(&mut Spline, &Transform)>,
+    mut gizmos: Gizmos,
+    mouse_button: Res<ButtonInput<MouseButton>>,
+    position: Res<MousePosition>,
+) {
+    for (mut spline, transform) in splines.iter_mut() {
+        for mut p in spline.points.iter_mut() {
+            if mouse_button.pressed(MouseButton::Left) {
+                if p.distance(position.0 - transform.translation.xy()) < 2.0 {
+                    *p = position.0 - transform.translation.xy();
+                    break;
+                }
+            }
         }
+        for mut p in spline.points.iter_mut() {
+            gizmos.circle_2d(
+                transform.translation.xy() + *p,
+                1.0,
+                Color::srgb(1.0, 0.0, 0.0),
+            );
+        }
+        let line_points = spline
+            .get_points(0.0, 1.0)
+            .iter()
+            .map(|p| transform.translation.xy() + *p)
+            .collect::<Vec<_>>();
+
+        gizmos.linestrip_2d(line_points, Color::srgb(0.0, 0.0, 1.0));
     }
 }
