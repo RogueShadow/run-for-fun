@@ -12,7 +12,8 @@ pub fn setup_camera(mut commands: Commands) {
         MainCamera,
         Camera2dBundle {
             projection: OrthographicProjection {
-                scaling_mode: ScalingMode::FixedVertical(160.0),
+                near: -1000.0,
+                scaling_mode: ScalingMode::FixedHorizontal(350.0),
                 ..default()
             },
             ..default()
@@ -21,12 +22,20 @@ pub fn setup_camera(mut commands: Commands) {
 }
 
 pub fn move_camera(
-    mut camera: Query<&mut Transform, With<MainCamera>>,
+    mut cam_query: Query<(&Camera, &mut Transform), With<MainCamera>>,
     follow: Query<&Transform, (With<Follow>, Without<MainCamera>)>,
+    time: Res<Time>,
 ) {
-    if let Ok(mut cam) = camera.get_single_mut() {
+    if let Ok((camera, mut transform)) = cam_query.get_single_mut() {
         if let Ok(fol) = follow.get_single() {
-            cam.translation = fol.translation;
+            let dir = transform.translation.x - fol.translation.x;
+            if dir.abs() > 16.0 {
+                transform.translation.x -= dir * time.delta_seconds() * 2.0;
+            }
+            let dir = transform.translation.y - fol.translation.y;
+            if dir.abs() > 48.0 {
+                transform.translation.y -= dir * time.delta_seconds() * 3.0;
+            }
         }
     }
 }

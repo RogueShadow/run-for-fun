@@ -79,7 +79,7 @@ impl Plugin for RunGame {
                 update_movement_component.before(update_character_position_from_velocity),
                 update_player_states,
                 update_player_animation,
-                move_camera,
+                move_camera.after(update_character_position_from_velocity),
             ),
         );
     }
