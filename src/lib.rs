@@ -10,6 +10,7 @@ use bevy::asset::AssetMetaCheck;
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::math::vec2;
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 use camera::*;
@@ -20,7 +21,6 @@ use player_controls::*;
 use player_movement::*;
 use sound::*;
 use std::collections::HashMap;
-use std::time::Duration;
 use wasm_bindgen::prelude::*;
 
 #[derive(Component)]
@@ -65,10 +65,11 @@ impl Plugin for RunGame {
         app.add_plugins(PerfUiPlugin);
         app.add_plugins(RustAnimationPlugin);
         app.insert_resource(LevelSelection::Uid(0));
+        app.insert_resource(MousePosition(Vec2::ZERO));
         app.add_systems(Startup, setup_camera);
         app.add_systems(Startup, setup);
         app.add_systems(FixedPreUpdate, build_collision_boxes);
-        app.add_systems(PreUpdate, update_player_controls);
+        app.add_systems(PreUpdate, (update_player_controls, update_mouse_position));
         app.add_systems(
             Update,
             (
@@ -81,6 +82,23 @@ impl Plugin for RunGame {
                 move_camera,
             ),
         );
+    }
+}
+
+pub fn update_mouse_position(
+    window: Query<&Window, With<PrimaryWindow>>,
+    camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    mut mouse_position: ResMut<MousePosition>,
+) {
+    let (camera, camera_transform) = camera.single();
+    if let Ok(window) = window.get_single() {
+        if let Some(world_position) = window
+            .cursor_position()
+            .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
+            .map(|ray| ray.origin.truncate())
+        {
+            mouse_position.0 = world_position;
+        }
     }
 }
 
