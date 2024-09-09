@@ -1,6 +1,10 @@
 use bevy::input::mouse::MouseMotion;
+use bevy::math::prelude::*;
+use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
+use itertools::Itertools;
+use num_traits::float::FloatConst;
 use std::time::Duration;
 use std::vec::IntoIter;
 
@@ -285,162 +289,8 @@ impl Interpolation<Vec2> for Vec2 {
 }
 
 #[derive(Component)]
-pub struct Spline {
-    pub points: Vec<Vec2>,
-    pub looped: bool,
-    step: f32,
-}
-impl Spline {
-    pub fn new(points: impl Into<Vec<Vec2>>, looped: bool) -> Self {
-        let points = points.into();
-        if points.len() < 4 {
-            panic!("Need 4 or more points in the spline")
-        }
-        Self {
-            points,
-            looped,
-            step: 0.05,
-        }
-    }
+pub struct Spline(CubicCardinalSpline<Vec2>);
 
-    pub fn get_normalized_point(&self, t: f32) -> Vec2 {
-        self.get_point(t * self.points.len() as f32)
-    }
-
-    pub fn get_point(&self, t: f32) -> Vec2 {
-        // Prevent panic from rounding to a index that's out of bounds.
-        let t = match (
-            self.looped,
-            t >= self.points.len() as f32,
-            t >= self.points.len() as f32 - 3.0,
-        ) {
-            (true, true, _) => self.points.len() as f32 - 0.00001,
-            (false, _, true) => self.points.len() as f32 - 3.00001,
-            _ => t,
-        };
-
-        let mut p1 = t.floor() as usize + 1;
-        let mut p2 = p1 + 1;
-        let mut p3 = p1 + 2;
-        let mut p0 = p1 - 1;
-
-        if self.looped {
-            p1 = t.floor() as usize;
-            p2 = (p1 + 1) % self.points.len();
-            p3 = (p2 + 1) % self.points.len();
-            p0 = if p1 >= 1 {
-                p1 - 1
-            } else {
-                self.points.len() - 1
-            };
-        }
-
-        let t1 = t - t.floor();
-
-        let t2 = t1 * t1;
-        let t3 = t1 * t1 * t1;
-
-        let q1 = -t3 + 2.0 * t2 - t1;
-        let q2 = 3.0 * t3 - 5.0 * t2 + 2.0;
-        let q3 = -3.0 * t3 + 4.0 * t2 + t1;
-        let q4 = t3 - t2;
-
-        let tx = 0.5
-            * (self.points[p0].x * q1
-                + self.points[p1].x * q2
-                + self.points[p2].x * q3
-                + self.points[p3].x * q4);
-        let ty = 0.5
-            * (self.points[p0].y * q1
-                + self.points[p1].y * q2
-                + self.points[p2].y * q3
-                + self.points[p3].y * q4);
-
-        Vec2::new(tx, ty)
-    }
-
-    pub fn get_gradient(&self, t: f32) -> Vec2 {
-        // Prevent panic from rounding to a index that's out of bounds.
-        let t = match (
-            self.looped,
-            t >= self.points.len() as f32,
-            t >= self.points.len() as f32 - 3.0,
-        ) {
-            (true, true, _) => self.points.len() as f32 - 0.00001,
-            (false, _, true) => self.points.len() as f32 - 3.00001,
-            _ => t,
-        };
-
-        let mut p1 = t.floor() as usize + 1;
-        let mut p2 = p1 + 1;
-        let mut p3 = p1 + 2;
-        let mut p0 = p1 - 1;
-
-        if self.looped {
-            p1 = t.floor() as usize;
-            p2 = (p1 + 1) % self.points.len();
-            p3 = (p2 + 1) % self.points.len();
-            p0 = if p1 >= 1 {
-                p1 - 1
-            } else {
-                self.points.len() - 1
-            };
-        }
-
-        let t1 = t - t.floor();
-
-        let t2 = t1 * t1;
-
-        let q1 = -3.0 * t2 + 4.0 * t1 - 1.0;
-        let q2 = 9.0 * t2 - 10.0 * t1;
-        let q3 = -9.0 * t2 + 8.0 * t1 + 1.0;
-        let q4 = 3.0 * t2 - 2.0 * t1;
-
-        let tx = 0.5
-            * (self.points[p0].x * q1
-                + self.points[p1].x * q2
-                + self.points[p2].x * q3
-                + self.points[p3].x * q4);
-        let ty = 0.5
-            * (self.points[p0].y * q1
-                + self.points[p1].y * q2
-                + self.points[p2].y * q3
-                + self.points[p3].y * q4);
-
-        Vec2::new(tx, ty)
-    }
-
-    fn get_points(&self, start: f32, end: f32) -> Vec<Vec2> {
-        let mut results = vec![];
-        let start = start;
-        let end = end * self.points.len() as f32;
-        let mut current = start;
-        while current < end {
-            results.push(self.get_point(current));
-            current += self.step;
-        }
-        results
-    }
-
-    fn get_gradients(&self, start: f32, end: f32) -> Vec<Vec2> {
-        let mut results = vec![];
-        let start = start;
-        let end = end * self.points.len() as f32;
-        let mut current = start;
-        while current < end {
-            results.push(self.get_gradient(current));
-            current += self.step;
-        }
-        results
-    }
-
-    pub fn set_step(&mut self, step: f32) {
-        if step <= 0.0 {
-            panic!("Step must not be negative or zero.")
-        }
-        self.step = step;
-    }
-}
 pub fn debug_spline(
     mut splines: Query<(&mut Spline, &Transform)>,
     mut gizmos: Gizmos,
@@ -448,15 +298,16 @@ pub fn debug_spline(
     position: Res<MousePosition>,
 ) {
     for (mut spline, transform) in splines.iter_mut() {
-        for mut p in spline.points.iter_mut() {
+        for mut p in spline.0.control_points.iter_mut() {
             if mouse_button.pressed(MouseButton::Left) {
                 if p.distance(position.0 - transform.translation.xy()) < 2.0 {
                     *p = position.0 - transform.translation.xy();
                     break;
                 }
+            } else {
             }
         }
-        for mut p in spline.points.iter_mut() {
+        for mut p in spline.0.control_points.iter() {
             gizmos.circle_2d(
                 transform.translation.xy() + *p,
                 1.0,
@@ -464,35 +315,37 @@ pub fn debug_spline(
             );
         }
         let line_points = spline
-            .get_points(0.0, 1.0)
-            .iter()
-            .map(|p| transform.translation.xy() + *p)
+            .0
+            .to_curve()
+            .iter_positions(100)
+            .map(|p| p + transform.translation.xy())
             .collect::<Vec<_>>();
 
         gizmos.linestrip_2d(line_points.clone(), Color::srgb(0.0, 0.0, 1.0));
 
         let line_gradients = spline
-            .get_gradients(0.0, 1.0)
-            .iter()
-            .map(|p| f32::atan2(-p.y, p.x))
+            .0
+            .to_curve()
+            .iter_velocities(100)
+            .map(|a| a.to_angle() + f32::FRAC_PI_2())
             .collect::<Vec<_>>();
 
         line_points.iter().zip(line_gradients).for_each(|(p, g)| {
             gizmos.line_2d(
                 *p,
-                *p + Vec2::new(g.sin(), g.cos()) * 2.0,
+                *p + vec2(g.cos(), g.sin()) * 3.0,
                 Color::srgb(0.0, 1.0, 0.0),
             );
             gizmos.line_2d(
                 *p,
-                *p - Vec2::new(g.sin(), g.cos()) * 2.0,
+                *p - vec2(g.cos(), g.sin()) * 3.0,
                 Color::srgb(0.0, 1.0, 0.0),
             );
         });
     }
 }
 
-pub fn circle_spline() -> Spline {
+pub fn circle_spline() -> CubicCardinalSpline<Vec2> {
     let points = (0..360)
         .step_by(40)
         .map(|x| {
@@ -503,5 +356,5 @@ pub fn circle_spline() -> Spline {
             Vec2::new(xpos, ypos)
         })
         .collect::<Vec<_>>();
-    Spline::new(points, true)
+    CubicCardinalSpline::new_catmull_rom(points)
 }

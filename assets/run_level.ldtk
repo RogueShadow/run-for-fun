@@ -553,7 +553,7 @@
 						},
 						{
 							"__identifier": "Player_start",
-							"__grid": [2,23],
+							"__grid": [2,20],
 							"__pivot": [0.5,0.5],
 							"__tags": [],
 							"__tile": null,
@@ -562,10 +562,10 @@
 							"width": 16,
 							"height": 32,
 							"defUid": 6,
-							"px": [40,376],
+							"px": [40,328],
 							"fieldInstances": [],
 							"__worldX": -104,
-							"__worldY": 120
+							"__worldY": 72
 						},
 						{
 							"__identifier": "Text",

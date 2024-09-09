@@ -12,9 +12,12 @@ use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_ecs_ldtk::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_kira_audio::{AudioApp, AudioPlugin};
 use bevy_rapier2d::prelude::*;
 use camera::*;
 use events_systems::*;
+use itertools::Itertools;
 use iyes_perf_ui::prelude::*;
 use level_loader::*;
 use player_controls::*;
@@ -33,6 +36,8 @@ pub struct Finish;
 pub struct RaceTime(Time);
 #[derive(Component)]
 pub struct Player;
+#[derive(Resource)]
+pub struct BackgroundMusic;
 
 #[wasm_bindgen(start)]
 pub fn run() {
@@ -53,9 +58,9 @@ struct RunGame;
 
 impl Plugin for RunGame {
     fn build(&self, app: &mut App) {
-        app.add_plugins(
-            RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(16.0).in_fixed_schedule(),
-        );
+        app.add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(
+            Distance::PIXELS_PER_METER,
+        ));
         app.add_plugins(RapierDebugRenderPlugin {
             enabled: false,
             ..default()
@@ -64,8 +69,12 @@ impl Plugin for RunGame {
         app.add_plugins(FrameTimeDiagnosticsPlugin);
         app.add_plugins(PerfUiPlugin);
         app.add_plugins(RustAnimationPlugin);
+        app.add_plugins(WorldInspectorPlugin::new());
+        app.add_plugins(AudioPlugin::default());
+        app.add_audio_channel::<BackgroundMusic>();
         app.insert_resource(LevelSelection::Uid(0));
         app.insert_resource(MousePosition(Vec2::ZERO));
+        app.register_type::<Jump>();
         app.add_systems(Startup, setup_camera);
         app.add_systems(Startup, setup);
         app.add_systems(FixedPreUpdate, build_collision_boxes);
@@ -73,12 +82,16 @@ impl Plugin for RunGame {
         app.add_systems(
             Update,
             (
+                update_speedometer,
+                menu_interaction,
                 detect_flags,
                 advance_race_timer,
                 update_character_position_from_velocity,
-                update_movement_component.before(update_character_position_from_velocity),
+                update_jump_component.before(update_character_position_from_velocity),
+                update_run_component.before(update_character_position_from_velocity),
                 update_player_states,
                 update_player_animation,
+                update_platform_position,
                 move_camera.after(update_character_position_from_velocity),
             ),
         );
@@ -147,7 +160,11 @@ fn setup(
     });
 
     //Setup Physics
-    rapier_config.gravity.y = -200.0;
+    rapier_config.gravity.y = -300.0;
+    rapier_config.timestep_mode = TimestepMode::Fixed {
+        dt: 1. / 120.,
+        substeps: 4,
+    };
 
     //Load some Sounds
     let sounds = Sounds {
@@ -159,6 +176,8 @@ fn setup(
         land: assets.load("45_Landing_01.wav"),
     };
     cmds.insert_resource(sounds);
+
+    //Observe all the things.
     cmds.observe(play_sounds);
     cmds.observe(player_touched_flags);
     cmds.observe(spawn_player);
@@ -166,4 +185,101 @@ fn setup(
     cmds.observe(spawn_message);
     cmds.observe(spawn_flags);
     cmds.observe(start_background_music);
+    cmds.observe(spawn_platform);
+
+    //UI Attempts
+    let root_row = cmds
+        .spawn(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Row,
+                left: Val::Px(4.),
+                top: Val::Px(4.),
+                ..default()
+            },
+            ..default()
+        })
+        .id();
+    let column1 = cmds
+        .spawn(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                left: Val::Px(4.),
+                top: Val::Px(4.),
+                ..default()
+            },
+            ..default()
+        })
+        .id();
+    let column2 = cmds
+        .spawn(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Column,
+                left: Val::Px(4.),
+                top: Val::Px(4.),
+                ..default()
+            },
+            ..default()
+        })
+        .id();
+    cmds.entity(root_row).add_child(column1);
+    cmds.entity(root_row).add_child(column2);
+    let button_labels1 = ["Jump+", "FDrag+"];
+    let button_labels2 = ["Jump-", "FDrag-"];
+    cmds.entity(column1).with_children(|parent| {
+        for label in button_labels1 {
+            parent.spawn(button()).with_children(|parent| {
+                parent.spawn(text(label));
+            });
+        }
+    });
+    cmds.entity(column2).with_children(|parent| {
+        for label in button_labels2 {
+            parent.spawn(button()).with_children(|parent| {
+                parent.spawn(text(label));
+            });
+        }
+    });
+}
+
+pub fn button() -> ButtonBundle {
+    ButtonBundle {
+        style: Style {
+            width: Val::Px(90.0),
+            height: Val::Px(30.0),
+            border: UiRect::all(Val::Px(2.0)),
+            align_items: AlignItems::FlexStart,
+            justify_content: JustifyContent::FlexStart,
+            ..default()
+        },
+        background_color: BackgroundColor(Color::srgb(0.3, 0.3, 0.3)),
+        border_color: BorderColor(Color::srgb(0., 0., 0.)),
+        border_radius: BorderRadius::all(Val::Px(8.)),
+        ..default()
+    }
+}
+pub fn text(label: impl Into<String>) -> TextBundle {
+    TextBundle {
+        text: Text::from_section(label, TextStyle::default()),
+        ..default()
+    }
+}
+
+pub fn menu_interaction(
+    interaction_query: Query<(&Interaction, &Children), Changed<Interaction>>,
+    text_query: Query<&Text>,
+    mut movement_query: Query<(&mut Jump, &mut Run)>,
+) {
+    for (interaction, children) in interaction_query.iter() {
+        let text = &text_query.get(children[0]).unwrap().sections[0].value;
+        match interaction {
+            Interaction::Pressed => {
+                let (mut jump, mut run) = movement_query.single_mut();
+                match text.as_str() {
+                    _ => {}
+                }
+            }
+            Interaction::Hovered => {}
+            Interaction::None => {}
+        }
+    }
 }

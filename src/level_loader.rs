@@ -280,6 +280,17 @@ pub fn build_collision_boxes(
                 loaded.0.push(entity); // Don't try to load again.
 
                 cmds.trigger(StartBackgroundMusic);
+
+                let points = [
+                    vec2(500.0, 200.0),
+                    vec2(200.0, 100.0),
+                    vec2(350.0, 250.0),
+                    vec2(500.0, 200.0),
+                ];
+                cmds.trigger(SpawnPlatformEvent {
+                    speed: 32.0,
+                    spline: CubicCardinalSpline::new_catmull_rom(points),
+                })
             } else {
                 error!("Couldn't load level data.");
             }

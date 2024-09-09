@@ -1,19 +1,19 @@
 use crate::animation::{circle_spline, RustAnimation, RustAnimationAtlas};
 use crate::camera::Follow;
-use crate::player_controls::{PlayerControls, PlayerState};
-use crate::player_movement::PlayerMovement;
+use crate::player_controls::PlayerState;
+use crate::player_movement::{Jump, Run, Speedometer};
 use crate::sound::Sounds;
-use crate::Play;
 use crate::RaceTime;
+use crate::{BackgroundMusic, Play};
 use crate::{Finish, Player, PlayerText, Start};
-use bevy::audio::{PlaybackMode, Volume};
 use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
+use bevy_kira_audio::prelude::*;
 use bevy_rapier2d::control::{CharacterLength, KinematicCharacterController};
 use bevy_rapier2d::dynamics::{LockedAxes, RigidBody};
 use bevy_rapier2d::geometry::{ActiveCollisionTypes, ActiveEvents, Collider, Friction, Sensor};
-use bevy_rapier2d::prelude::AdditionalMassProperties;
+use bevy_rapier2d::prelude::{AdditionalMassProperties, Velocity};
 
 #[derive(Event)]
 pub struct SpawnPlayerEvent {
@@ -147,6 +147,55 @@ pub fn spawn_box(
         AdditionalMassProperties::Mass(3000.0),
     ));
 }
+#[derive(Event)]
+pub struct SpawnPlatformEvent {
+    pub(crate) spline: CubicCardinalSpline<Vec2>,
+    pub(crate) speed: f32,
+}
+#[derive(Component)]
+pub struct MovingPlatform(CubicCardinalSpline<Vec2>, f32);
+
+pub fn spawn_platform(
+    trigger: Trigger<SpawnPlatformEvent>,
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+) {
+    let spawn_event = trigger.event();
+
+    if let Some(position) = spawn_event.spline.control_points.first() {
+        let texture = assets.load("red_block.png");
+        commands.spawn((
+            MovingPlatform(spawn_event.spline.to_owned(), spawn_event.speed),
+            RigidBody::Dynamic,
+            LockedAxes::ROTATION_LOCKED,
+            Collider::cuboid(32.0, 8.0),
+            SpriteBundle {
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(64.0, 16.0)),
+                    rect: None,
+                    ..default()
+                },
+                transform: Transform::from_xyz(position.x, position.y, 120.0),
+                texture,
+                ..default()
+            },
+        ));
+        info!("Spawned platform");
+    }
+}
+pub fn update_platform_position(
+    mut query_platforms: Query<(&MovingPlatform, &mut Transform)>,
+    time: Res<Time>,
+) {
+    let mut elapsed = time.elapsed_seconds() / 4.0;
+    for (platform, mut transform) in query_platforms.iter_mut() {
+        let curve = platform.0.to_curve();
+        let t_len = platform.0.control_points.len() as f32 - 1.0;
+        let pos = curve.position(elapsed % t_len);
+        transform.translation.x = pos.x;
+        transform.translation.y = pos.y;
+    }
+}
 pub fn spawn_player(
     trigger: Trigger<SpawnPlayerEvent>,
     mut commands: Commands,
@@ -162,10 +211,10 @@ pub fn spawn_player(
         .spawn((
             Follow,
             Player,
-            PlayerMovement::default(),
-            PlayerControls::default(),
+            Speedometer::default(),
+            Jump::default(),
+            Run::default(),
             PlayerState::default(),
-            circle_spline(),
             RustAnimationAtlas::new([
                 RustAnimation::list([0], 0.1),
                 RustAnimation::list([0, 1, 2, 3], 0.1),
@@ -191,14 +240,14 @@ pub fn spawn_player(
                 index: 2,
             },
             RigidBody::KinematicVelocityBased,
-            Collider::cuboid(8.0, 7.75),
+            Collider::cuboid(7.75, 7.75),
             LockedAxes::ROTATION_LOCKED,
             KinematicCharacterController {
                 translation: None,
                 offset: CharacterLength::Relative(0.01),
                 normal_nudge_factor: 0.001,
                 slide: true,
-                snap_to_ground: Some(CharacterLength::Relative(0.05)),
+                snap_to_ground: Some(CharacterLength::Relative(0.03)),
                 apply_impulse_to_dynamic_bodies: true,
                 ..default()
             },
@@ -270,14 +319,10 @@ pub struct StartBackgroundMusic;
 pub fn start_background_music(
     _: Trigger<StartBackgroundMusic>,
     sounds: Res<Sounds>,
-    mut commands: Commands,
+    audio: Res<AudioChannel<BackgroundMusic>>,
 ) {
-    commands.spawn(AudioBundle {
-        source: sounds.bgm.clone_weak(),
-        settings: PlaybackSettings {
-            mode: PlaybackMode::Loop,
-            volume: Volume::new(0.25),
-            ..default()
-        },
-    });
+    audio
+        .play(sounds.bgm.clone_weak())
+        .looped()
+        .with_volume(0.25);
 }
