@@ -9,18 +9,13 @@ pub enum Distance {
     Meters(f32),
     Pixels(f32),
 }
-impl Default for Distance {
-    fn default() -> Self {
-        Self::Meters(0.0)
-    }
-}
 impl Distance {
     pub const PIXELS_PER_METER: f32 = 16.0;
-    pub fn from_pixels(pixels: f32) -> Distance {
-        Distance::Meters(pixels / Distance::PIXELS_PER_METER)
+    pub fn pixels(pixels: f32) -> Distance {
+        Distance::Pixels(pixels)
     }
-    pub fn from_meters(meters: f32) -> Distance {
-        Distance::Pixels(meters * Distance::PIXELS_PER_METER)
+    pub fn meters(meters: f32) -> Distance {
+        Distance::Meters(meters)
     }
     pub fn to_pixels(&self) -> f32 {
         match self {
@@ -35,7 +30,11 @@ impl Distance {
         }
     }
 }
-
+impl Default for Distance {
+    fn default() -> Self {
+        Self::Meters(0.0)
+    }
+}
 #[derive(Component, Debug)]
 pub struct Speedometer {
     pub last_position: Vec2,
@@ -63,8 +62,8 @@ pub fn update_speedometer(
             let multiplier = 1.0 / speedometer.timer.duration().as_secs_f32();
             info!(
                 "Run Speed: {:?} m/s\nAir Speed: {:?}",
-                Distance::from_pixels(speedometer.speed.x * multiplier).to_meters(),
-                Distance::from_pixels(speedometer.speed.y * multiplier).to_meters(),
+                Distance::pixels(speedometer.speed.x * multiplier).to_meters(),
+                Distance::pixels(speedometer.speed.y * multiplier).to_meters(),
             );
         }
     }
@@ -233,8 +232,8 @@ pub struct Run {
 impl Default for Run {
     fn default() -> Self {
         Self {
-            base_speed: Distance::from_meters(5.0),
-            max_speed: Distance::from_meters(10.0),
+            base_speed: Distance::meters(5.0),
+            max_speed: Distance::meters(10.0),
             time_for_max_speed: 2.0,
             running: None,
             current_run_time: 0.0,
