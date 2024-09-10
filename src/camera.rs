@@ -30,7 +30,7 @@ pub fn move_camera(
         if let Ok(fol) = follow.get_single() {
             let dir = transform.translation.x - fol.translation.x;
             if dir.abs() > 16.0 {
-                transform.translation.x -= dir * time.delta_seconds() * 2.0;
+                transform.translation.x -= dir * time.delta_seconds() * 3.0;
             }
             let dir = transform.translation.y - fol.translation.y;
             if dir.abs() > 48.0 {

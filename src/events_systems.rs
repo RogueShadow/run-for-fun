@@ -1,7 +1,7 @@
 use crate::animation::{circle_spline, RustAnimation, RustAnimationAtlas};
 use crate::camera::Follow;
 use crate::player_controls::PlayerState;
-use crate::player_movement::{Jump, Run, Speedometer};
+use crate::player_movement::{Jump, Run, SideChecks, Speedometer};
 use crate::sound::Sounds;
 use crate::RaceTime;
 use crate::{BackgroundMusic, Play};
@@ -166,7 +166,7 @@ pub fn spawn_platform(
         let texture = assets.load("red_block.png");
         commands.spawn((
             MovingPlatform(spawn_event.spline.to_owned(), spawn_event.speed),
-            RigidBody::Dynamic,
+            RigidBody::KinematicPositionBased,
             LockedAxes::ROTATION_LOCKED,
             Collider::cuboid(32.0, 8.0),
             SpriteBundle {
@@ -211,7 +211,8 @@ pub fn spawn_player(
         .spawn((
             Follow,
             Player,
-            Speedometer::default(),
+            SideChecks::default(),
+            //Speedometer::default(),
             Jump::default(),
             Run::default(),
             PlayerState::default(),

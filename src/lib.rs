@@ -78,7 +78,14 @@ impl Plugin for RunGame {
         app.add_systems(Startup, setup_camera);
         app.add_systems(Startup, setup);
         app.add_systems(FixedPreUpdate, build_collision_boxes);
-        app.add_systems(PreUpdate, (update_player_controls, update_mouse_position));
+        app.add_systems(
+            PreUpdate,
+            (
+                update_player_controls,
+                update_mouse_position,
+                player_wall_ceiling_checks,
+            ),
+        );
         app.add_systems(
             Update,
             (

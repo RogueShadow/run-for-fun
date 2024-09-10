@@ -75,15 +75,17 @@ pub fn update_speedometer(
 pub struct Jump {
     pub jumping: bool,
     pub max_distance: Distance,
+    pub min_distance: Distance,
     pub speed: Distance,
     pub current_distance: f32,
-    pub current_fall_distance: f32,
     pub velocity: f32,
     pub grounded: bool,
+    pub ceiling: bool,
+    pub jump_held: bool,
 }
 impl Jump {
     pub fn try_jump(&mut self) -> bool {
-        if !self.jumping && self.grounded {
+        if !self.jumping && self.grounded && !self.ceiling {
             self.jumping = true;
             true
         } else {
@@ -94,40 +96,125 @@ impl Jump {
 impl Default for Jump {
     fn default() -> Self {
         Self {
-            jumping: false,
-            max_distance: Distance::Meters(4.0),
-            speed: Distance::Meters(20.0),
-            current_distance: 0.0,
-            current_fall_distance: 0.0,
-            velocity: 0.0,
-            grounded: false,
+            jumping: false,                      // am I actually jumping
+            max_distance: Distance::Meters(4.0), // max  height
+            min_distance: Distance::Meters(2.0), // min height
+            speed: Distance::Meters(10.0),       // max jump speed, also for falling atm.
+            current_distance: 0.0,               // height of jump
+            velocity: 0.0, // output of this component, used with run output to check position for collision and update.
+            grounded: false, // set to reference if on ground by physics component.
+            ceiling: false,
+            jump_held: false, // set in controls to reference button being held.
         }
     }
 }
 
-pub fn update_jump_component(
-    mut entities: Query<(&mut Jump, &KinematicCharacterControllerOutput)>,
-    time: Res<Time>,
+#[derive(Component, Default)]
+pub struct SideChecks {
+    left_wall: bool,
+    right_wall: bool,
+    ceiling: bool,
+    ground: bool,
+}
+pub fn player_wall_ceiling_checks(
+    mut player_query: Query<
+        (
+            Entity,
+            &Collider,
+            &Transform,
+            &mut SideChecks,
+            &KinematicCharacterControllerOutput,
+        ),
+        With<Player>,
+    >,
+    physics: Res<RapierContext>,
+    mut gizmos: Gizmos,
 ) {
-    for (mut jump, output) in entities.iter_mut() {
-        jump.grounded = output.grounded;
+    if let Ok((player, collider, transform, mut sides, output)) = player_query.get_single_mut() {
+        sides.ground = output.grounded;
+        let filter = QueryFilter::new()
+            .exclude_collider(player)
+            .exclude_sensors();
+        if let Some((_, _)) = physics.cast_shape(
+            transform.translation.xy(),
+            0.0,
+            vec2(-1.0, 0.0),
+            collider,
+            ShapeCastOptions {
+                max_time_of_impact: 1.0,
+                target_distance: 0.0,
+                stop_at_penetration: true,
+                compute_impact_geometry_on_penetration: false,
+            },
+            filter,
+        ) {
+            sides.left_wall = true;
+        } else {
+            sides.left_wall = false;
+        }
 
-        let percent_complete = (jump.current_distance / jump.max_distance.to_pixels()).min(1.0);
-        if jump.jumping && percent_complete < 1.0 {
-            let jump_speed =
-                jump.speed.to_pixels() * (1.0 - percent_complete).max(0.5) * time.delta_seconds();
+        if let Some((_, _)) = physics.cast_shape(
+            transform.translation.xy(),
+            0.0,
+            vec2(1.0, 0.0),
+            collider,
+            ShapeCastOptions {
+                max_time_of_impact: 1.0,
+                target_distance: 0.0,
+                stop_at_penetration: true,
+                compute_impact_geometry_on_penetration: false,
+            },
+            filter,
+        ) {
+            sides.right_wall = true;
+        } else {
+            sides.right_wall = false;
+        }
+
+        if let Some((_, _)) = physics.cast_shape(
+            transform.translation.xy(),
+            0.0,
+            vec2(0.0, 1.0),
+            collider,
+            ShapeCastOptions {
+                max_time_of_impact: 1.0,
+                target_distance: 0.0,
+                stop_at_penetration: true,
+                compute_impact_geometry_on_penetration: false,
+            },
+            QueryFilter::exclude_dynamic()
+                .exclude_sensors()
+                .exclude_collider(player),
+        ) {
+            sides.ceiling = true;
+        } else {
+            sides.ceiling = false;
+        }
+    }
+}
+pub fn update_jump_component(mut entities: Query<(&mut Jump, &SideChecks)>, time: Res<Time>) {
+    for (mut jump, output) in entities.iter_mut() {
+        jump.grounded = output.ground;
+        jump.ceiling = output.ceiling;
+
+        let max_complete = (jump.current_distance / jump.max_distance.to_pixels()).min(1.0);
+        let min_complete = (jump.current_distance / jump.min_distance.to_pixels()).min(1.0);
+        if output.ceiling {
+            jump.jumping = false;
+        }
+        if (jump.jumping && jump.jump_held && max_complete < 1.0)
+            || (jump.jumping && min_complete < 1.0)
+        {
+            let jump_speed = jump.speed.to_pixels() * time.delta_seconds();
             jump.velocity = jump_speed;
             jump.current_distance += jump_speed;
         } else if !jump.grounded {
-            let percent_complete =
-                (jump.current_fall_distance / jump.max_distance.to_pixels()).min(1.0);
-            let fall_speed =
-                jump.speed.to_pixels() * percent_complete.max(0.5) * time.delta_seconds();
+            jump.jumping = false;
+            let fall_speed = jump.speed.to_pixels() * time.delta_seconds();
             jump.velocity = -fall_speed;
         } else if jump.grounded {
             jump.jumping = false;
             jump.current_distance = 0.0;
-            jump.current_fall_distance = 0.0;
         }
     }
 }

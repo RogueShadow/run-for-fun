@@ -85,6 +85,11 @@ pub fn update_player_controls(
                 commands.trigger(Play::Jump)
             }
         }
+        if input.any_pressed(jump_buttons) {
+            jump.jump_held = true;
+        } else {
+            jump.jump_held = false;
+        }
         if input.any_pressed(jump_buttons) && input_buffering.can_jump() {
             if jump.try_jump() {
                 commands.trigger(Play::Jump)

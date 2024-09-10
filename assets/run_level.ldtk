@@ -553,7 +553,7 @@
 						},
 						{
 							"__identifier": "Player_start",
-							"__grid": [2,20],
+							"__grid": [48,23],
 							"__pivot": [0.5,0.5],
 							"__tags": [],
 							"__tile": null,
@@ -562,14 +562,14 @@
 							"width": 16,
 							"height": 32,
 							"defUid": 6,
-							"px": [40,328],
+							"px": [776,376],
 							"fieldInstances": [],
-							"__worldX": -104,
-							"__worldY": 72
+							"__worldX": 632,
+							"__worldY": 120
 						},
 						{
 							"__identifier": "Text",
-							"__grid": [5,21],
+							"__grid": [52,21],
 							"__pivot": [0,0],
 							"__tags": [],
 							"__tile": null,
@@ -578,12 +578,12 @@
 							"width": 16,
 							"height": 16,
 							"defUid": 9,
-							"px": [80,336],
+							"px": [832,336],
 							"fieldInstances": [{ "__identifier": "message", "__type": "String", "__value": "Welcome to the world.", "__tile": null, "defUid": 10, "realEditorValues": [{
 								"id": "V_String",
 								"params": ["Welcome to the world."]
 							}] }],
-							"__worldX": -64,
+							"__worldX": 688,
 							"__worldY": 80
 						},
 						{
@@ -1247,7 +1247,7 @@
 						},
 						{
 							"__identifier": "Text",
-							"__grid": [6,26],
+							"__grid": [11,26],
 							"__pivot": [0,0],
 							"__tags": [],
 							"__tile": null,
@@ -1256,17 +1256,17 @@
 							"width": 16,
 							"height": 16,
 							"defUid": 9,
-							"px": [96,416],
+							"px": [176,416],
 							"fieldInstances": [{ "__identifier": "message", "__type": "String", "__value": "Touch the green flag to start a time race.", "__tile": null, "defUid": 10, "realEditorValues": [{
 								"id": "V_String",
 								"params": ["Touch the green flag to start a time race."]
 							}] }],
-							"__worldX": -48,
+							"__worldX": 32,
 							"__worldY": 160
 						},
 						{
 							"__identifier": "Text",
-							"__grid": [19,26],
+							"__grid": [22,26],
 							"__pivot": [0,0],
 							"__tags": [],
 							"__tile": null,
@@ -1275,12 +1275,12 @@
 							"width": 16,
 							"height": 16,
 							"defUid": 9,
-							"px": [304,416],
+							"px": [352,416],
 							"fieldInstances": [{ "__identifier": "message", "__type": "String", "__value": "Find the red flag to finish, and see your time.", "__tile": null, "defUid": 10, "realEditorValues": [{
 								"id": "V_String",
 								"params": ["Find the red flag to finish, and see your time."]
 							}] }],
-							"__worldX": 160,
+							"__worldX": 208,
 							"__worldY": 160
 						},
 						{
