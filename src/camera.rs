@@ -39,3 +39,11 @@ pub fn move_camera(
         }
     }
 }
+
+pub struct CameraPlugin;
+impl Plugin for CameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, setup_camera);
+        app.add_systems(PostUpdate, move_camera);
+    }
+}

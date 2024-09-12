@@ -1,19 +1,34 @@
 use crate::animation::{circle_spline, RustAnimation, RustAnimationAtlas};
+use crate::assets::Sounds;
 use crate::camera::Follow;
 use crate::player_controls::PlayerState;
 use crate::player_movement::{Jump, Run, SideChecks, Speedometer};
-use crate::sound::Sounds;
+use crate::BackgroundMusic;
 use crate::RaceTime;
-use crate::{BackgroundMusic, Play};
 use crate::{Finish, Player, PlayerText, Start};
 use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
+use bevy_ecs_ldtk::{EntityInstance, LdtkEntity};
 use bevy_kira_audio::prelude::*;
 use bevy_rapier2d::control::{CharacterLength, KinematicCharacterController};
 use bevy_rapier2d::dynamics::{LockedAxes, RigidBody};
 use bevy_rapier2d::geometry::{ActiveCollisionTypes, ActiveEvents, Collider, Friction, Sensor};
 use bevy_rapier2d::prelude::{AdditionalMassProperties, Velocity};
+
+pub struct EventsPlugin;
+impl Plugin for EventsPlugin {
+    fn build(&self, app: &mut App) {
+        app.observe(play_sounds);
+        app.observe(player_touched_flags);
+        app.observe(spawn_player);
+        app.observe(spawn_box);
+        app.observe(spawn_message);
+        app.observe(spawn_flags);
+        app.observe(start_background_music);
+        app.observe(spawn_platform);
+    }
+}
 
 #[derive(Event)]
 pub struct SpawnPlayerEvent {
@@ -123,6 +138,7 @@ pub fn spawn_message(trigger: Trigger<SpawnMessageEvent>, mut commands: Commands
         ..default()
     });
 }
+
 pub fn spawn_box(
     trigger: Trigger<SpawnBoxEvent>,
     mut commands: Commands,
@@ -196,6 +212,7 @@ pub fn update_platform_position(
         transform.translation.y = pos.y;
     }
 }
+
 pub fn spawn_player(
     trigger: Trigger<SpawnPlayerEvent>,
     mut commands: Commands,
@@ -326,4 +343,25 @@ pub fn start_background_music(
         .play(sounds.bgm.clone_weak())
         .looped()
         .with_volume(0.25);
+}
+
+#[derive(Event)]
+pub enum Play {
+    Jump,
+    Walk,
+    Finish,
+    Land,
+    Start,
+}
+
+pub fn play_sounds(trigger: Trigger<Play>, sfx: Res<AudioChannel<MainTrack>>, sounds: Res<Sounds>) {
+    let source = match trigger.event() {
+        Play::Jump => sounds.jump.clone_weak(),
+        Play::Walk => sounds.walk.clone_weak(),
+        Play::Finish => sounds.finish.clone_weak(),
+        Play::Land => sounds.land.clone_weak(),
+        Play::Start => sounds.start.clone_weak(),
+    };
+
+    sfx.play(source);
 }

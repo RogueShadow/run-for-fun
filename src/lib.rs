@@ -1,16 +1,18 @@
 mod animation;
+mod assets;
 mod camera;
 mod events_systems;
 mod level_loader;
 mod player_controls;
 mod player_movement;
-mod sound;
 use animation::*;
+use assets::*;
 use bevy::asset::AssetMetaCheck;
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use bevy_asset_loader::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_kira_audio::{AudioApp, AudioPlugin};
@@ -22,7 +24,6 @@ use iyes_perf_ui::prelude::*;
 use level_loader::*;
 use player_controls::*;
 use player_movement::*;
-use sound::*;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
@@ -58,6 +59,13 @@ struct RunGame;
 
 impl Plugin for RunGame {
     fn build(&self, app: &mut App) {
+        app.init_state::<GameState>();
+        app.add_loading_state(
+            LoadingState::new(GameState::Loading)
+                .continue_to_state(GameState::LoadGame)
+                .load_collection::<Sounds>()
+                .load_collection::<Levels>(),
+        );
         app.add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(
             Distance::PIXELS_PER_METER,
         ));
@@ -69,26 +77,29 @@ impl Plugin for RunGame {
         app.add_plugins(FrameTimeDiagnosticsPlugin);
         app.add_plugins(PerfUiPlugin);
         app.add_plugins(RustAnimationPlugin);
-        app.add_plugins(WorldInspectorPlugin::new());
+        app.add_plugins(WorldInspectorPlugin::default());
         app.add_plugins(AudioPlugin::default());
+        app.add_plugins(CameraPlugin);
+        app.add_plugins(EventsPlugin);
         app.add_audio_channel::<BackgroundMusic>();
         app.insert_resource(LevelSelection::Uid(0));
         app.insert_resource(MousePosition(Vec2::ZERO));
         app.register_type::<Jump>();
-        app.add_systems(Startup, setup_camera);
-        app.add_systems(Startup, setup);
-        app.add_systems(FixedPreUpdate, build_collision_boxes);
+        app.add_systems(OnEnter(GameState::LoadGame), setup);
         app.add_systems(
             PreUpdate,
             (
                 update_player_controls,
                 update_mouse_position,
                 player_wall_ceiling_checks,
-            ),
+            )
+                .run_if(in_state(GameState::LoadGame)),
         );
         app.add_systems(
             Update,
             (
+                dynamic_level_loading,
+                dynamic_collision_layer_building,
                 update_speedometer,
                 menu_interaction,
                 detect_flags,
@@ -99,10 +110,19 @@ impl Plugin for RunGame {
                 update_player_states,
                 update_player_animation,
                 update_platform_position,
-                move_camera.after(update_character_position_from_velocity),
-            ),
+            )
+                .run_if(in_state(GameState::LoadGame)),
         );
     }
+}
+
+#[derive(Default, States, Debug, Eq, PartialEq, Hash, Clone)]
+pub enum GameState {
+    #[default]
+    Loading,
+    Menu,
+    LoadGame,
+    InGame,
 }
 
 pub fn update_mouse_position(
@@ -156,16 +176,9 @@ pub fn detect_flags(
 
 fn setup(
     mut cmds: Commands,
-    assets: Res<AssetServer>,
     mut rapier_config: ResMut<RapierConfiguration>,
+    level_query: Res<Levels>,
 ) {
-    //Load Level
-    let level_handle: Handle<LdtkProject> = assets.load("run_level.ldtk");
-    cmds.spawn(LdtkWorldBundle {
-        ldtk_handle: level_handle,
-        ..default()
-    });
-
     //Setup Physics
     rapier_config.gravity.y = -300.0;
     rapier_config.timestep_mode = TimestepMode::Fixed {
@@ -173,26 +186,10 @@ fn setup(
         substeps: 4,
     };
 
-    //Load some Sounds
-    let sounds = Sounds {
-        bgm: assets.load("Caketown 1.mp3"),
-        jump: assets.load("jump_01.wav"),
-        walk: assets.load("03_Step_grass_03.wav"),
-        finish: assets.load("Won!.wav"),
-        start: assets.load("Start_Sounds_003.wav"),
-        land: assets.load("45_Landing_01.wav"),
-    };
-    cmds.insert_resource(sounds);
-
-    //Observe all the things.
-    cmds.observe(play_sounds);
-    cmds.observe(player_touched_flags);
-    cmds.observe(spawn_player);
-    cmds.observe(spawn_box);
-    cmds.observe(spawn_message);
-    cmds.observe(spawn_flags);
-    cmds.observe(start_background_music);
-    cmds.observe(spawn_platform);
+    cmds.spawn(LdtkWorldBundle {
+        ldtk_handle: level_query.level1.clone(),
+        ..default()
+    });
 
     //UI Attempts
     let root_row = cmds
@@ -280,9 +277,10 @@ pub fn menu_interaction(
         let text = &text_query.get(children[0]).unwrap().sections[0].value;
         match interaction {
             Interaction::Pressed => {
-                let (mut jump, mut run) = movement_query.single_mut();
-                match text.as_str() {
-                    _ => {}
+                if let Ok((mut jump, mut run)) = movement_query.get_single_mut() {
+                    match text.as_str() {
+                        _ => {}
+                    }
                 }
             }
             Interaction::Hovered => {}

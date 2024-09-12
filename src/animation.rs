@@ -1,12 +1,8 @@
-use bevy::input::mouse::MouseMotion;
 use bevy::math::prelude::*;
 use bevy::math::vec2;
 use bevy::prelude::*;
-use bevy::sprite::Anchor;
-use itertools::Itertools;
 use num_traits::float::FloatConst;
 use std::time::Duration;
-use std::vec::IntoIter;
 
 #[derive(Resource)]
 pub struct MousePosition(pub Vec2);
