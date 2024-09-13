@@ -6,6 +6,27 @@ use bevy_ecs_tilemap::prelude::*;
 use bevy_rapier2d::prelude::*;
 use std::time::Duration;
 
+pub enum GameEntities {
+    PlayerStart,
+    StartFlag,
+    FinishFlag,
+    PhysicsBlock,
+    Text,
+    NotImplemented,
+}
+impl From<&str> for GameEntities {
+    fn from(value: &str) -> GameEntities {
+        match value {
+            "Player_start" => GameEntities::PlayerStart,
+            "Physics_block" => GameEntities::PhysicsBlock,
+            "Text" => GameEntities::Text,
+            "Start" => GameEntities::StartFlag,
+            "Finish" => GameEntities::FinishFlag,
+            _ => GameEntities::NotImplemented,
+        }
+    }
+}
+
 pub struct TiledCollisionBuilder {
     building: bool,
     position: Vec2,
@@ -58,7 +79,6 @@ impl TiledCollisionBuilder {
     }
     pub fn extend(&mut self) {
         if !self.building {
-            warn!("Not currently building");
             return;
         }
         self.size.x += self.tile_size.x;
@@ -81,32 +101,37 @@ pub fn dynamic_level_loading(
             .as_standalone()
             .find_loaded_level_by_level_selection(&level_selection);
         if level.is_none() {
-            info!("Failed to load level.");
+            warn!("Failed to load level.");
             return;
         }
         let level = level.unwrap(); // We just checked, should be fine.
 
         for entity in entities_query.iter() {
-            match entity.identifier.as_str() {
-                "Physics_block" => {
+            use GameEntities::*;
+            match GameEntities::from(entity.identifier.as_str()) {
+                PhysicsBlock => {
                     let mut pos = entity.px.as_vec2();
                     pos.y *= -1.0;
-                    pos.y += *level.px_hei() as f32;
+                    pos.y += *level.px_hei() as f32 - entity.height as f32;
+                    pos += vec2(entity.width as f32, entity.height as f32) / 2.0;
                     commands.trigger(SpawnBoxEvent { position: pos });
+                    info!("Add Physics Block {:?}", pos);
                 }
-                "Player_start" => {
+                PlayerStart => {
                     let mut player_pos = entity.px.as_vec2();
                     player_pos.y *= -1.0;
                     player_pos.y += *level.px_hei() as f32;
-
+                    player_pos += vec2(entity.width as f32, entity.height as f32) / 2.0;
                     commands.trigger(SpawnPlayerEvent {
                         position: player_pos,
                     });
+                    info!("Add Player {:?}", player_pos);
                 }
-                "Text" => {
+                Text => {
                     let mut pos = entity.px.as_vec2();
                     pos.y *= -1.0;
-                    pos.y += *level.px_hei() as f32;
+                    pos.y += *level.px_hei() as f32 - entity.height as f32;
+                    pos += vec2(entity.width as f32, entity.height as f32) / 2.0;
                     let msg = entity.get_string_field("message");
                     match msg {
                         Err(e) => {
@@ -117,32 +142,39 @@ pub fn dynamic_level_loading(
                                 position: pos,
                                 message: m.to_string(),
                             });
+                            info!("Add message {:?}", pos);
                         }
                     }
                 }
-                "Start" => {
+                StartFlag => {
                     let mut pos = entity.px.as_vec2();
                     pos.y *= -1.0;
-                    pos.y += *level.px_hei() as f32;
+                    pos.y += *level.px_hei() as f32 - entity.height as f32;
                     let size = vec2(entity.width as f32, entity.height as f32);
+                    pos += vec2(entity.width as f32, entity.height as f32) / 2.0;
                     commands.trigger(SpawnFlagEvent {
                         flag: FlagType::Start,
                         position: pos,
                         size: size,
                     });
+                    info!("Add Start Flag {:?}", pos);
                 }
-                "Finish" => {
+                FinishFlag => {
                     let mut pos = entity.px.as_vec2();
                     pos.y *= -1.0;
-                    pos.y += *level.px_hei() as f32;
+                    pos.y += *level.px_hei() as f32 - entity.height as f32;
                     let size = vec2(entity.width as f32, entity.height as f32);
+                    pos += vec2(entity.width as f32, entity.height as f32) / 2.0;
                     commands.trigger(SpawnFlagEvent {
                         flag: FlagType::Finish,
                         position: pos,
                         size: size,
                     });
+                    info!("Add Finish Flag {:?}", pos);
                 }
-                _ => {}
+                NotImplemented => {
+                    info!("Tried to load unimplemented entity {:?}", entity.identifier);
+                }
             }
         }
     }

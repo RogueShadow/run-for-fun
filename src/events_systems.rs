@@ -3,8 +3,8 @@ use crate::assets::Sounds;
 use crate::camera::Follow;
 use crate::player_controls::PlayerState;
 use crate::player_movement::{Jump, Run, SideChecks, Speedometer};
-use crate::BackgroundMusic;
 use crate::RaceTime;
+use crate::{BackgroundMusic, SoundEffects};
 use crate::{Finish, Player, PlayerText, Start};
 use bevy::math::vec2;
 use bevy::prelude::*;
@@ -159,8 +159,8 @@ pub fn spawn_box(
         },
         RigidBody::Dynamic,
         Collider::cuboid(8.0, 8.0),
-        Friction::coefficient(0.5),
-        AdditionalMassProperties::Mass(3000.0),
+        //Friction::coefficient(0.5),
+        //AdditionalMassProperties::Mass(3000.0),
     ));
 }
 #[derive(Event)]
@@ -197,19 +197,6 @@ pub fn spawn_platform(
             },
         ));
         info!("Spawned platform");
-    }
-}
-pub fn update_platform_position(
-    mut query_platforms: Query<(&MovingPlatform, &mut Transform)>,
-    time: Res<Time>,
-) {
-    let mut elapsed = time.elapsed_seconds() / 4.0;
-    for (platform, mut transform) in query_platforms.iter_mut() {
-        let curve = platform.0.to_curve();
-        let t_len = platform.0.control_points.len() as f32 - 1.0;
-        let pos = curve.position(elapsed % t_len);
-        transform.translation.x = pos.x;
-        transform.translation.y = pos.y;
     }
 }
 
@@ -314,7 +301,7 @@ pub fn player_touched_flags(
             if let Ok(_) = race_time_query.get_single_mut() {
                 msg("You've already started, why you back here?!");
             } else {
-                commands.trigger(Play::Start);
+                commands.trigger(PlaySoundEffect::Start);
                 msg("Run to the finish!");
                 commands
                     .entity(player_entity)
@@ -323,7 +310,7 @@ pub fn player_touched_flags(
         }
         TouchedFlag::Finish => {
             if let Ok(time) = race_time_query.get_single_mut() {
-                commands.trigger(Play::Finish);
+                commands.trigger(PlaySoundEffect::Finish);
                 msg(&format!("You've finished! {:.3}", time.0.elapsed_seconds()));
                 commands.entity(player_entity).remove::<RaceTime>();
             }
@@ -346,7 +333,7 @@ pub fn start_background_music(
 }
 
 #[derive(Event)]
-pub enum Play {
+pub enum PlaySoundEffect {
     Jump,
     Walk,
     Finish,
@@ -354,14 +341,17 @@ pub enum Play {
     Start,
 }
 
-pub fn play_sounds(trigger: Trigger<Play>, sfx: Res<AudioChannel<MainTrack>>, sounds: Res<Sounds>) {
+pub fn play_sounds(
+    trigger: Trigger<PlaySoundEffect>,
+    sfx: Res<AudioChannel<SoundEffects>>,
+    sounds: Res<Sounds>,
+) {
     let source = match trigger.event() {
-        Play::Jump => sounds.jump.clone_weak(),
-        Play::Walk => sounds.walk.clone_weak(),
-        Play::Finish => sounds.finish.clone_weak(),
-        Play::Land => sounds.land.clone_weak(),
-        Play::Start => sounds.start.clone_weak(),
+        PlaySoundEffect::Jump => sounds.jump.clone_weak(),
+        PlaySoundEffect::Walk => sounds.walk.clone_weak(),
+        PlaySoundEffect::Finish => sounds.finish.clone_weak(),
+        PlaySoundEffect::Land => sounds.land.clone_weak(),
+        PlaySoundEffect::Start => sounds.start.clone_weak(),
     };
-
     sfx.play(source);
 }

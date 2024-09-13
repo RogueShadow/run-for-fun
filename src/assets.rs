@@ -1,9 +1,21 @@
+use crate::GameState;
 use bevy::asset::Handle;
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_ecs_ldtk::assets::LdtkProject;
 use bevy_kira_audio::AudioSource;
 
+pub struct LoadingPlugin;
+impl Plugin for LoadingPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_loading_state(
+            LoadingState::new(GameState::Loading)
+                .continue_to_state(GameState::LoadGame)
+                .load_collection::<Sounds>()
+                .load_collection::<Levels>(),
+        );
+    }
+}
 #[derive(AssetCollection, Resource)]
 pub struct Sounds {
     #[asset(path = "Caketown 1.mp3")]

@@ -1,10 +1,34 @@
-use crate::player_movement::{Jump, Run};
-use crate::{Play, Player, RustAnimationAtlas};
+use crate::player_movement::{
+    player_wall_ceiling_checks, update_character_position_from_velocity, update_jump_component,
+    update_run_component, update_speedometer, Jump, Run,
+};
+use crate::{PlaySoundEffect, Player, RustAnimationAtlas};
 use bevy::prelude::*;
 use bevy_rapier2d::render::DebugRenderContext;
 use iyes_perf_ui::prelude::{PerfUiEntryFPS, PerfUiEntryFPSWorst, PerfUiRoot};
 use std::cmp::PartialEq;
 use std::time::Duration;
+
+pub struct PlayerControlPlugin;
+impl Plugin for PlayerControlPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            PreUpdate,
+            (update_player_controls, player_wall_ceiling_checks),
+        );
+        app.add_systems(
+            Update,
+            (
+                update_speedometer,
+                update_character_position_from_velocity,
+                update_jump_component.before(update_character_position_from_velocity),
+                update_run_component.before(update_character_position_from_velocity),
+                update_player_states,
+                update_player_animation,
+            ),
+        );
+    }
+}
 
 #[derive(Resource)]
 pub struct InputBuffer {
@@ -82,7 +106,7 @@ pub fn update_player_controls(
         if input.any_just_pressed(jump_buttons) {
             input_buffering.reset();
             if jump.try_jump() {
-                commands.trigger(Play::Jump)
+                commands.trigger(PlaySoundEffect::Jump)
             }
         }
         if input.any_pressed(jump_buttons) {
@@ -92,7 +116,7 @@ pub fn update_player_controls(
         }
         if input.any_pressed(jump_buttons) && input_buffering.can_jump() {
             if jump.try_jump() {
-                commands.trigger(Play::Jump)
+                commands.trigger(PlaySoundEffect::Jump)
             }
         }
         if input.any_pressed(crouch_buttons) {
@@ -116,7 +140,7 @@ pub fn update_player_controls(
             if state.animation_state == AnimationState::Walking {
                 step_timer.tick(time.delta());
                 if step_timer.just_finished() {
-                    commands.trigger(Play::Walk);
+                    commands.trigger(PlaySoundEffect::Walk);
                 }
             }
         }

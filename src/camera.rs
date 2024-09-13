@@ -4,7 +4,7 @@ use bevy::render::camera::ScalingMode;
 #[derive(Component)]
 pub struct MainCamera;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Follow;
 
 pub fn setup_camera(mut commands: Commands) {

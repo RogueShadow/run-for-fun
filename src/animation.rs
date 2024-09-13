@@ -55,7 +55,7 @@ impl Default for RustAnimationAtlas {
     }
 }
 
-pub fn update_rustanimation(
+pub fn update_rust_animation(
     time: Res<Time>,
     mut query: Query<(&mut RustAnimation, &mut TextureAtlas)>,
 ) {
@@ -64,7 +64,7 @@ pub fn update_rustanimation(
         atlas.index = animation.current();
     }
 }
-pub fn update_rustanimationatlas(
+pub fn update_rust_animation_atlas(
     time: Res<Time>,
     mut query: Query<(&mut RustAnimationAtlas, &mut TextureAtlas)>,
 ) {
@@ -162,10 +162,9 @@ impl RustAnimationType {
         if value.len() != timing.len() {
             panic!("Must have same number of indices and timings")
         }
-        let first = value[0];
         Self::VariableTimingList {
             indices: value,
-            position: first,
+            position: 0,
             timing: timing
                 .iter()
                 .map(|t| Duration::from_secs_f32(*t))
@@ -183,10 +182,9 @@ impl RustAnimationType {
         if value.is_empty() {
             panic!("List must not be empty.")
         }
-        let first = value[0];
         Self::IndexList {
             indices: value,
-            position: first,
+            position: 0,
             step: Duration::from_secs_f32(step),
         }
     }
@@ -245,8 +243,8 @@ impl Plugin for RustAnimationPlugin {
         app.add_systems(
             Update,
             (
-                update_rustanimation,
-                update_rustanimationatlas,
+                update_rust_animation,
+                update_rust_animation_atlas,
                 debug_spline,
             ),
         );

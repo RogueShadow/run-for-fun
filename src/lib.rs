@@ -39,6 +39,8 @@ pub struct RaceTime(Time);
 pub struct Player;
 #[derive(Resource)]
 pub struct BackgroundMusic;
+#[derive(Resource)]
+pub struct SoundEffects;
 
 #[wasm_bindgen(start)]
 pub fn run() {
@@ -49,7 +51,14 @@ pub fn run() {
                     meta_check: AssetMetaCheck::Never,
                     ..default()
                 })
-                .set(ImagePlugin::default_nearest()),
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Run for Fun: With Physics!".to_string(),
+                        ..default()
+                    }),
+                    ..default()
+                }),
         )
         .add_plugins(RunGame)
         .run();
@@ -60,12 +69,7 @@ struct RunGame;
 impl Plugin for RunGame {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>();
-        app.add_loading_state(
-            LoadingState::new(GameState::Loading)
-                .continue_to_state(GameState::LoadGame)
-                .load_collection::<Sounds>()
-                .load_collection::<Levels>(),
-        );
+        app.add_plugins(LoadingPlugin);
         app.add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(
             Distance::PIXELS_PER_METER,
         ));
@@ -81,38 +85,31 @@ impl Plugin for RunGame {
         app.add_plugins(AudioPlugin::default());
         app.add_plugins(CameraPlugin);
         app.add_plugins(EventsPlugin);
+        app.add_plugins(PlayerControlPlugin);
         app.add_audio_channel::<BackgroundMusic>();
+        app.add_audio_channel::<SoundEffects>();
         app.insert_resource(LevelSelection::Uid(0));
         app.insert_resource(MousePosition(Vec2::ZERO));
-        app.register_type::<Jump>();
         app.add_systems(OnEnter(GameState::LoadGame), setup);
-        app.add_systems(
-            PreUpdate,
-            (
-                update_player_controls,
-                update_mouse_position,
-                player_wall_ceiling_checks,
-            )
-                .run_if(in_state(GameState::LoadGame)),
-        );
+        app.add_systems(PreUpdate, update_mouse_position);
         app.add_systems(
             Update,
             (
                 dynamic_level_loading,
                 dynamic_collision_layer_building,
-                update_speedometer,
                 menu_interaction,
                 detect_flags,
                 advance_race_timer,
-                update_character_position_from_velocity,
-                update_jump_component.before(update_character_position_from_velocity),
-                update_run_component.before(update_character_position_from_velocity),
-                update_player_states,
-                update_player_animation,
-                update_platform_position,
             )
                 .run_if(in_state(GameState::LoadGame)),
         );
+        app.add_systems(Update, log_transitions);
+    }
+}
+
+pub fn log_transitions(mut transition_event: EventReader<StateTransitionEvent<GameState>>) {
+    for event in transition_event.read() {
+        info!("{:?}", event);
     }
 }
 
