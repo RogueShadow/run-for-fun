@@ -1,8 +1,9 @@
+use crate::level_loader::PlayerMarker;
 use crate::player_movement::{
     player_wall_ceiling_checks, update_character_position_from_velocity, update_jump_component,
     update_run_component, update_speedometer, Jump, Run,
 };
-use crate::{PlaySoundEffect, Player, RustAnimationAtlas};
+use crate::{PlaySoundEffect, RustAnimationAtlas};
 use bevy::prelude::*;
 use bevy_rapier2d::render::DebugRenderContext;
 use iyes_perf_ui::prelude::{PerfUiEntryFPS, PerfUiEntryFPSWorst, PerfUiRoot};
@@ -73,6 +74,7 @@ pub enum AnimationDirection {
 }
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum AnimationState {
+    // platformer, left/right by image flip.
     Idle,
     Walking,
     Running,
@@ -80,13 +82,16 @@ pub enum AnimationState {
     Jumping,
     CrouchWalking,
     Braking,
+    Pushing,
+    Grabbing,
+    GrabWalk,
 }
 
 pub fn update_player_controls(
     mut input_buffering: Local<InputBuffer>,
     mut step_timer: Local<Timer>,
     time: Res<Time>,
-    mut player_components_query: Query<(&PlayerState, &mut Run, &mut Jump), With<Player>>,
+    mut player_components_query: Query<(&PlayerState, &mut Run, &mut Jump), With<PlayerMarker>>,
     input: Res<ButtonInput<KeyCode>>,
     mut debug: ResMut<DebugRenderContext>,
     mut commands: Commands,
@@ -167,7 +172,7 @@ pub fn update_player_controls(
     }
 }
 
-pub fn update_player_states(mut state: Query<(&mut PlayerState, &Jump, &Run), With<Player>>) {
+pub fn update_player_states(mut state: Query<(&mut PlayerState, &Jump, &Run), With<PlayerMarker>>) {
     if let Ok((mut state, jump, run)) = state.get_single_mut() {
         use AnimationDirection::*;
         use AnimationState::*;
@@ -178,27 +183,22 @@ pub fn update_player_states(mut state: Query<(&mut PlayerState, &Jump, &Run), Wi
         };
 
         state.animation_state = match (jump.jumping, run.running, jump.grounded) {
-            (false, None, true) => Idle,
-            (false, Some(_), true) => Walking,
-            (true, _, false) => Jumping,
-            (true, _, true) => Jumping,
+            (_, Some(_), true) => Walking,
+            (_, _, false) => Jumping,
             _ => Idle,
         };
     }
 }
 
 pub fn update_player_animation(
-    mut player: Query<(&mut Sprite, &PlayerState, &mut RustAnimationAtlas), With<Player>>,
+    mut player: Query<(&mut Sprite, &PlayerState, &mut RustAnimationAtlas), With<PlayerMarker>>,
 ) {
     if let Ok((mut sprite, state, mut animation)) = player.get_single_mut() {
         animation.set_current(match state.animation_state {
             AnimationState::Idle => 0,
             AnimationState::Walking => 2,
-            AnimationState::Running => 2,
-            AnimationState::Crouching => 3,
             AnimationState::Jumping => 4,
-            AnimationState::CrouchWalking => 5,
-            AnimationState::Braking => 4,
+            _ => 0,
         });
         sprite.flip_x = match state.direction {
             AnimationDirection::Left => true,

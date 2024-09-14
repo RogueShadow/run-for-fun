@@ -124,7 +124,7 @@ pub fn player_wall_ceiling_checks(
             &mut SideChecks,
             &KinematicCharacterControllerOutput,
         ),
-        With<Player>,
+        With<PlayerMarker>,
     >,
     physics: Res<RapierContext>,
     mut gizmos: Gizmos,
@@ -258,7 +258,7 @@ pub fn update_run_component(mut run_query: Query<&mut Run>, time: Res<Time>) {
 }
 
 pub fn update_character_position_from_velocity(
-    mut player_query: Query<(&mut KinematicCharacterController, &Jump, &Run), With<Player>>,
+    mut player_query: Query<(&mut KinematicCharacterController, &Jump, &Run), With<PlayerMarker>>,
 ) {
     if let Ok((mut controller, jump, run)) = player_query.get_single_mut() {
         controller.translation = Some(Vec2::new(run.velocity, jump.velocity));

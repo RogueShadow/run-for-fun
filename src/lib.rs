@@ -35,8 +35,6 @@ pub struct Start;
 pub struct Finish;
 #[derive(Component, Deref, DerefMut)]
 pub struct RaceTime(Time);
-#[derive(Component)]
-pub struct Player;
 #[derive(Resource)]
 pub struct BackgroundMusic;
 #[derive(Resource)]
@@ -77,7 +75,7 @@ impl Plugin for RunGame {
             enabled: false,
             ..default()
         });
-        app.add_plugins(LdtkPlugin);
+        app.add_plugins(RFFLevelPlugin);
         app.add_plugins(FrameTimeDiagnosticsPlugin);
         app.add_plugins(PerfUiPlugin);
         app.add_plugins(RustAnimationPlugin);
@@ -88,19 +86,12 @@ impl Plugin for RunGame {
         app.add_plugins(PlayerControlPlugin);
         app.add_audio_channel::<BackgroundMusic>();
         app.add_audio_channel::<SoundEffects>();
-        app.insert_resource(LevelSelection::Uid(0));
         app.insert_resource(MousePosition(Vec2::ZERO));
         app.add_systems(OnEnter(GameState::LoadGame), setup);
         app.add_systems(PreUpdate, update_mouse_position);
         app.add_systems(
             Update,
-            (
-                dynamic_level_loading,
-                dynamic_collision_layer_building,
-                menu_interaction,
-                detect_flags,
-                advance_race_timer,
-            )
+            (menu_interaction, detect_flags, advance_race_timer)
                 .run_if(in_state(GameState::LoadGame)),
         );
         app.add_systems(Update, log_transitions);
@@ -146,7 +137,7 @@ pub fn advance_race_timer(mut race_timer: Query<&mut RaceTime>, time: Res<Time>)
 }
 
 pub fn detect_flags(
-    player: Query<Entity, With<Player>>,
+    player: Query<Entity, With<PlayerMarker>>,
     mut collision_events: EventReader<CollisionEvent>,
     start: Query<Entity, With<Start>>,
     finish: Query<Entity, With<Finish>>,

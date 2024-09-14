@@ -22,7 +22,7 @@ pub fn setup_camera(mut commands: Commands) {
 }
 
 pub fn move_camera(
-    mut cam_query: Query<(&mut Transform), With<MainCamera>>,
+    mut cam_query: Query<&mut Transform, With<MainCamera>>,
     follow: Query<&Transform, (With<Follow>, Without<MainCamera>)>,
     time: Res<Time>,
 ) {
