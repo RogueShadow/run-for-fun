@@ -1,10 +1,17 @@
-mod animation;
-mod assets;
-mod camera;
-mod events_systems;
-mod level_loader;
-mod player_controls;
-mod player_movement;
+pub mod animation;
+pub mod assets;
+pub mod camera;
+pub mod events_systems;
+pub mod level_loader;
+pub mod player_controls;
+pub mod player_movement;
+pub mod entities {
+    pub mod crates;
+    pub mod flags;
+    pub mod message;
+    pub mod player;
+}
+use crate::entities::player::PlayerMarker;
 use animation::*;
 use assets::*;
 use bevy::asset::AssetMetaCheck;
@@ -29,9 +36,9 @@ use wasm_bindgen::prelude::*;
 
 #[derive(Component)]
 pub struct PlayerText;
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Start;
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Finish;
 #[derive(Component, Deref, DerefMut)]
 pub struct RaceTime(Time);

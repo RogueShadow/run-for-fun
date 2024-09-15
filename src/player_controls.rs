@@ -1,4 +1,4 @@
-use crate::level_loader::PlayerMarker;
+use crate::entities::player::PlayerMarker;
 use crate::player_movement::{
     player_wall_ceiling_checks, update_character_position_from_velocity, update_jump_component,
     update_run_component, update_speedometer, Jump, Run,
@@ -54,27 +54,22 @@ impl InputBuffer {
     }
 }
 
-#[derive(Component, Copy, Clone, Debug)]
+#[derive(Component, Copy, Clone, Debug, Default)]
 pub struct PlayerState {
     animation_state: AnimationState,
     direction: AnimationDirection,
 }
-impl Default for PlayerState {
-    fn default() -> Self {
-        Self {
-            animation_state: AnimationState::Idle,
-            direction: AnimationDirection::Right,
-        }
-    }
-}
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub enum AnimationDirection {
+    #[default]
     Left,
     Right,
 }
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub enum AnimationState {
     // platformer, left/right by image flip.
+    #[default]
     Idle,
     Walking,
     Running,

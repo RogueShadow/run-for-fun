@@ -1,3 +1,4 @@
+use crate::entities::player::PlayerMarker;
 use crate::*;
 use bevy::math::Vec2;
 use bevy::prelude::*;
@@ -127,7 +128,6 @@ pub fn player_wall_ceiling_checks(
         With<PlayerMarker>,
     >,
     physics: Res<RapierContext>,
-    mut gizmos: Gizmos,
 ) {
     if let Ok((player, collider, transform, mut sides, output)) = player_query.get_single_mut() {
         sides.ground = output.grounded;

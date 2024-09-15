@@ -1,5 +1,5 @@
 use crate::assets::Sounds;
-use crate::level_loader::PlayerMarker;
+use crate::entities::player::PlayerMarker;
 use crate::PlayerText;
 use crate::RaceTime;
 use crate::{BackgroundMusic, SoundEffects};

@@ -80,6 +80,7 @@ pub struct RustAnimation {
     time: Duration,
     just_finished: bool,
 }
+
 impl RustAnimation {
     pub fn new(animation_type: RustAnimationType) -> Self {
         Self {
