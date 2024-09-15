@@ -4,6 +4,7 @@ use crate::PlayerText;
 use crate::RaceTime;
 use crate::{BackgroundMusic, SoundEffects};
 use bevy::prelude::*;
+use bevy_ecs_ldtk::LevelSelection;
 use bevy_kira_audio::prelude::*;
 
 pub struct EventsPlugin;
@@ -33,6 +34,7 @@ pub fn player_touched_flags(
     mut commands: Commands,
     mut race_time_query: Query<&mut RaceTime>,
     player: Query<Entity, With<PlayerMarker>>,
+    level_selection: Res<LevelSelection>,
 ) {
     let player_entity = player.single();
     let mut msg = |msg: &str| {
@@ -42,21 +44,33 @@ pub fn player_touched_flags(
     };
     match trigger.event() {
         TouchedFlag::Start => {
-            if let Ok(_) = race_time_query.get_single_mut() {
-                msg("You've already started, why you back here?!");
+            if let Ok(time) = race_time_query.get_single_mut() {
+                if time.level != *level_selection {
+                    msg("One race at a time fella!");
+                } else {
+                    msg("You've already started, why you back here?!");
+                }
             } else {
                 commands.trigger(PlaySoundEffect::Start);
-                msg("Run to the finish!");
-                commands
-                    .entity(player_entity)
-                    .insert(RaceTime(Time::default()));
+                msg("Run to the finish line!");
+                commands.entity(player_entity).insert(RaceTime {
+                    time: Time::default(),
+                    level: level_selection.clone(),
+                });
             }
         }
         TouchedFlag::Finish => {
             if let Ok(time) = race_time_query.get_single_mut() {
-                commands.trigger(PlaySoundEffect::Finish);
-                msg(&format!("You've finished! {:.3}", time.0.elapsed_seconds()));
-                commands.entity(player_entity).remove::<RaceTime>();
+                if time.level == *level_selection {
+                    commands.trigger(PlaySoundEffect::Finish);
+                    msg(&format!(
+                        "You've finished! {:.3}",
+                        time.time.elapsed_seconds()
+                    ));
+                    commands.entity(player_entity).remove::<RaceTime>();
+                } else {
+                    msg("Wrong flag silly goose.");
+                }
             }
         }
     }

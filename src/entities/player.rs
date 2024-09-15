@@ -28,6 +28,8 @@ pub struct PlayerBundle {
     collider: Collider,
     locked_axis: LockedAxes,
     kinematic_character_controller: KinematicCharacterController,
+    #[worldly]
+    worldly: Worldly,
 }
 impl Default for PlayerBundle {
     fn default() -> Self {
@@ -59,6 +61,7 @@ impl Default for PlayerBundle {
                 apply_impulse_to_dynamic_bodies: true,
                 ..default()
             },
+            worldly: Default::default(),
         }
     }
 }

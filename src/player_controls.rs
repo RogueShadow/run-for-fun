@@ -3,8 +3,11 @@ use crate::player_movement::{
     player_wall_ceiling_checks, update_character_position_from_velocity, update_jump_component,
     update_run_component, update_speedometer, Jump, Run,
 };
-use crate::{PlaySoundEffect, RustAnimationAtlas};
+use crate::{GameState, PlaySoundEffect, RustAnimationAtlas};
 use bevy::prelude::*;
+use bevy_ecs_ldtk::assets::LdtkProject;
+use bevy_ecs_ldtk::prelude::LevelMetadataAccessor;
+use bevy_ecs_ldtk::{LevelIid, LevelSelection, Respawn};
 use bevy_rapier2d::render::DebugRenderContext;
 use iyes_perf_ui::prelude::{PerfUiEntryFPS, PerfUiEntryFPSWorst, PerfUiRoot};
 use std::cmp::PartialEq;
@@ -15,7 +18,8 @@ impl Plugin for PlayerControlPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             PreUpdate,
-            (update_player_controls, player_wall_ceiling_checks),
+            (update_player_controls, player_wall_ceiling_checks)
+                .run_if(in_state(GameState::LoadGame)),
         );
         app.add_systems(
             Update,
@@ -91,6 +95,11 @@ pub fn update_player_controls(
     mut debug: ResMut<DebugRenderContext>,
     mut commands: Commands,
     ui: Query<Entity, With<PerfUiRoot>>,
+    ldtk_project_query: Query<(Entity, &Handle<LdtkProject>)>,
+    level_selection: Res<LevelSelection>,
+    levels: Query<(Entity, &LevelIid)>,
+    ldtk_projects: Query<&Handle<LdtkProject>>,
+    ldtk_project_assets: Res<Assets<LdtkProject>>,
 ) {
     let jump_buttons = [KeyCode::KeyW, KeyCode::ArrowUp, KeyCode::Space];
     let crouch_buttons = [KeyCode::KeyS, KeyCode::ArrowDown];
@@ -101,7 +110,7 @@ pub fn update_player_controls(
         step_timer.set_mode(TimerMode::Repeating);
         step_timer.set_duration(Duration::from_secs_f32(0.3));
     }
-    if let Ok((state, mut run, mut jump)) = player_components_query.get_single_mut() {
+    for (state, mut run, mut jump) in player_components_query.iter_mut() {
         input_buffering.tick(time.delta());
         if input.any_just_pressed(jump_buttons) {
             input_buffering.reset();
@@ -160,15 +169,33 @@ pub fn update_player_controls(
                     layout_horizontal: true,
                     ..default()
                 },
-                PerfUiEntryFPSWorst::default(),
                 PerfUiEntryFPS::default(),
+                PerfUiEntryFPSWorst::default(),
             ));
+        }
+    }
+
+    if input.just_pressed(KeyCode::F1) {
+        if let Some(only_project) = ldtk_project_assets.get(ldtk_projects.single()) {
+            let level_selection_iid = LevelIid::new(
+                only_project
+                    .find_raw_level_by_level_selection(&level_selection)
+                    .expect("spawned level should exist in project")
+                    .iid
+                    .clone(),
+            );
+
+            for (level_entity, level_iid) in levels.iter() {
+                if level_selection_iid == *level_iid {
+                    commands.entity(level_entity).insert(Respawn);
+                }
+            }
         }
     }
 }
 
 pub fn update_player_states(mut state: Query<(&mut PlayerState, &Jump, &Run), With<PlayerMarker>>) {
-    if let Ok((mut state, jump, run)) = state.get_single_mut() {
+    for (mut state, jump, run) in state.iter_mut() {
         use AnimationDirection::*;
         use AnimationState::*;
         state.direction = match run.running {
@@ -188,7 +215,7 @@ pub fn update_player_states(mut state: Query<(&mut PlayerState, &Jump, &Run), Wi
 pub fn update_player_animation(
     mut player: Query<(&mut Sprite, &PlayerState, &mut RustAnimationAtlas), With<PlayerMarker>>,
 ) {
-    if let Ok((mut sprite, state, mut animation)) = player.get_single_mut() {
+    for (mut sprite, state, mut animation) in player.iter_mut() {
         animation.set_current(match state.animation_state {
             AnimationState::Idle => 0,
             AnimationState::Walking => 2,

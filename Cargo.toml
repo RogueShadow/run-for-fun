@@ -39,6 +39,7 @@ features = [
         "default_font",
         "webgl2",
         "sysinfo_plugin",
+        "file_watcher",
     ]
 
 [dependencies]

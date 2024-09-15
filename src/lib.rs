@@ -16,6 +16,7 @@ use animation::*;
 use assets::*;
 use bevy::asset::AssetMetaCheck;
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
+use bevy::input::common_conditions::input_toggle_active;
 use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
@@ -40,8 +41,11 @@ pub struct PlayerText;
 pub struct Start;
 #[derive(Component, Default)]
 pub struct Finish;
-#[derive(Component, Deref, DerefMut)]
-pub struct RaceTime(Time);
+#[derive(Component)]
+pub struct RaceTime {
+    time: Time,
+    level: LevelSelection,
+}
 #[derive(Resource)]
 pub struct BackgroundMusic;
 #[derive(Resource)]
@@ -84,9 +88,11 @@ impl Plugin for RunGame {
         });
         app.add_plugins(RFFLevelPlugin);
         app.add_plugins(FrameTimeDiagnosticsPlugin);
-        app.add_plugins(PerfUiPlugin);
+        app.add_plugins(PerfUiPlugin::default());
         app.add_plugins(RustAnimationPlugin);
-        app.add_plugins(WorldInspectorPlugin::default());
+        app.add_plugins(
+            WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Digit3)),
+        );
         app.add_plugins(AudioPlugin::default());
         app.add_plugins(CameraPlugin);
         app.add_plugins(EventsPlugin);
@@ -101,13 +107,6 @@ impl Plugin for RunGame {
             (menu_interaction, detect_flags, advance_race_timer)
                 .run_if(in_state(GameState::LoadGame)),
         );
-        app.add_systems(Update, log_transitions);
-    }
-}
-
-pub fn log_transitions(mut transition_event: EventReader<StateTransitionEvent<GameState>>) {
-    for event in transition_event.read() {
-        info!("{:?}", event);
     }
 }
 
@@ -139,7 +138,7 @@ pub fn update_mouse_position(
 
 pub fn advance_race_timer(mut race_timer: Query<&mut RaceTime>, time: Res<Time>) {
     if let Ok(mut race_timer) = race_timer.get_single_mut() {
-        race_timer.0.advance_by(time.delta());
+        race_timer.time.advance_by(time.delta());
     }
 }
 
@@ -160,10 +159,15 @@ pub fn detect_flags(
             if ![*e1, *e2].contains(&player_entity) {
                 return;
             }
-            if [*e1, *e2].contains(&start.single()) {
-                commands.trigger(TouchedFlag::Start);
-            } else if [*e1, *e2].contains(&finish.single()) {
-                commands.trigger(TouchedFlag::Finish);
+            for s in start.iter() {
+                if [*e1, *e2].contains(&s) {
+                    commands.trigger(TouchedFlag::Start);
+                }
+            }
+            for f in finish.iter() {
+                if [*e1, *e2].contains(&f) {
+                    commands.trigger(TouchedFlag::Finish);
+                }
             }
         }
     }
@@ -186,58 +190,60 @@ fn setup(
         ..default()
     });
 
-    //UI Attempts
-    let root_row = cmds
-        .spawn(NodeBundle {
-            style: Style {
-                flex_direction: FlexDirection::Row,
-                left: Val::Px(4.),
-                top: Val::Px(4.),
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let column1 = cmds
-        .spawn(NodeBundle {
-            style: Style {
-                flex_direction: FlexDirection::Column,
-                left: Val::Px(4.),
-                top: Val::Px(4.),
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let column2 = cmds
-        .spawn(NodeBundle {
-            style: Style {
-                flex_direction: FlexDirection::Column,
-                left: Val::Px(4.),
-                top: Val::Px(4.),
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    cmds.entity(root_row).add_child(column1);
-    cmds.entity(root_row).add_child(column2);
-    let button_labels1 = ["Jump+", "FDrag+"];
-    let button_labels2 = ["Jump-", "FDrag-"];
-    cmds.entity(column1).with_children(|parent| {
-        for label in button_labels1 {
-            parent.spawn(button()).with_children(|parent| {
-                parent.spawn(text(label));
-            });
-        }
-    });
-    cmds.entity(column2).with_children(|parent| {
-        for label in button_labels2 {
-            parent.spawn(button()).with_children(|parent| {
-                parent.spawn(text(label));
-            });
-        }
-    });
+    cmds.trigger(StartBackgroundMusic);
+
+    // //UI Attempts
+    // let root_row = cmds
+    //     .spawn(NodeBundle {
+    //         style: Style {
+    //             flex_direction: FlexDirection::Row,
+    //             left: Val::Px(4.),
+    //             top: Val::Px(4.),
+    //             ..default()
+    //         },
+    //         ..default()
+    //     })
+    //     .id();
+    // let column1 = cmds
+    //     .spawn(NodeBundle {
+    //         style: Style {
+    //             flex_direction: FlexDirection::Column,
+    //             left: Val::Px(4.),
+    //             top: Val::Px(4.),
+    //             ..default()
+    //         },
+    //         ..default()
+    //     })
+    //     .id();
+    // let column2 = cmds
+    //     .spawn(NodeBundle {
+    //         style: Style {
+    //             flex_direction: FlexDirection::Column,
+    //             left: Val::Px(4.),
+    //             top: Val::Px(4.),
+    //             ..default()
+    //         },
+    //         ..default()
+    //     })
+    //     .id();
+    // cmds.entity(root_row).add_child(column1);
+    // cmds.entity(root_row).add_child(column2);
+    // let button_labels1 = ["Jump+", "FDrag+"];
+    // let button_labels2 = ["Jump-", "FDrag-"];
+    // cmds.entity(column1).with_children(|parent| {
+    //     for label in button_labels1 {
+    //         parent.spawn(button()).with_children(|parent| {
+    //             parent.spawn(text(label));
+    //         });
+    //     }
+    // });
+    // cmds.entity(column2).with_children(|parent| {
+    //     for label in button_labels2 {
+    //         parent.spawn(button()).with_children(|parent| {
+    //             parent.spawn(text(label));
+    //         });
+    //     }
+    // });
 }
 
 pub fn button() -> ButtonBundle {

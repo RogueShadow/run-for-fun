@@ -260,7 +260,7 @@ pub fn update_run_component(mut run_query: Query<&mut Run>, time: Res<Time>) {
 pub fn update_character_position_from_velocity(
     mut player_query: Query<(&mut KinematicCharacterController, &Jump, &Run), With<PlayerMarker>>,
 ) {
-    if let Ok((mut controller, jump, run)) = player_query.get_single_mut() {
+    for (mut controller, jump, run) in player_query.iter_mut() {
         controller.translation = Some(Vec2::new(run.velocity, jump.velocity));
     }
 }
