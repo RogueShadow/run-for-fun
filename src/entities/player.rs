@@ -10,9 +10,7 @@ use bevy_ecs_ldtk::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 #[derive(Component, Default)]
-pub struct PlayerMarker {
-    position: Vec2,
-}
+pub struct PlayerMarker;
 #[derive(Bundle, LdtkEntity)]
 pub struct PlayerBundle {
     #[sprite_sheet_bundle("character.png", 32, 32, 3, 2, 0, 0, 2)]

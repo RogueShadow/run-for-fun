@@ -1,12 +1,9 @@
 use crate::*;
 use bevy::prelude::*;
-use bevy::sprite::Anchor;
-use bevy_ecs_ldtk::ldtk::{loaded_level::LoadedLevel, Level, TileInstance};
 use bevy_ecs_ldtk::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
 use bevy_rapier2d::prelude::*;
 use entities::{crates::*, flags::*, message::*, player::*};
-use std::time::Duration;
 
 pub struct RFFLevelPlugin;
 impl Plugin for RFFLevelPlugin {
@@ -142,11 +139,10 @@ pub fn dynamic_collision_layer_building(
     mut cmds: Commands,
     q_tile: Query<(Entity, &TileStorage, &TilemapGridSize, &LayerMetadata), Added<TileStorage>>,
     data: Query<&TileMetadata>,
-    map_assets: Res<Assets<LdtkProject>>,
     level_data: Res<Levels>,
 ) {
     for (level_entity, tile_storage, tilemap_gridsize, _) in
-        q_tile.iter().filter(|(_, _, _, l)| l.identifier == "Tiles")
+        q_tile.iter().filter(|(_, _, _, l)| l.identifier == "Walls")
     {
         let tile_size = vec2(tilemap_gridsize.x, tilemap_gridsize.y);
         let level_size = (tile_storage.size.x, tile_storage.size.y);

@@ -20,14 +20,12 @@ use bevy::input::common_conditions::input_toggle_active;
 use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy_asset_loader::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_kira_audio::{AudioApp, AudioPlugin};
 use bevy_rapier2d::prelude::*;
 use camera::*;
 use events_systems::*;
-use itertools::Itertools;
 use iyes_perf_ui::prelude::*;
 use level_loader::*;
 use player_controls::*;
@@ -104,8 +102,7 @@ impl Plugin for RunGame {
         app.add_systems(PreUpdate, update_mouse_position);
         app.add_systems(
             Update,
-            (menu_interaction, detect_flags, advance_race_timer)
-                .run_if(in_state(GameState::LoadGame)),
+            (detect_flags, advance_race_timer).run_if(in_state(GameState::LoadGame)),
         );
     }
 }
@@ -266,26 +263,5 @@ pub fn text(label: impl Into<String>) -> TextBundle {
     TextBundle {
         text: Text::from_section(label, TextStyle::default()),
         ..default()
-    }
-}
-
-pub fn menu_interaction(
-    interaction_query: Query<(&Interaction, &Children), Changed<Interaction>>,
-    text_query: Query<&Text>,
-    mut movement_query: Query<(&mut Jump, &mut Run)>,
-) {
-    for (interaction, children) in interaction_query.iter() {
-        let text = &text_query.get(children[0]).unwrap().sections[0].value;
-        match interaction {
-            Interaction::Pressed => {
-                if let Ok((mut jump, mut run)) = movement_query.get_single_mut() {
-                    match text.as_str() {
-                        _ => {}
-                    }
-                }
-            }
-            Interaction::Hovered => {}
-            Interaction::None => {}
-        }
     }
 }

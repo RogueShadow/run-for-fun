@@ -39,8 +39,9 @@ features = [
         "default_font",
         "webgl2",
         "sysinfo_plugin",
-        "file_watcher",
+        #"file_watcher",
     ]
+
 
 [dependencies]
 wasm-bindgen = "0.2.93"
@@ -58,7 +59,6 @@ bevy-inspector-egui = { version = "0.25.2", default-features = false, features =
 bevy_kira_audio = { version = "0.20.0", features = ["wav","mp3"] }
 bevy_asset_loader = {version = "0.21.0"}
 
-[profile.dev]
 
 
 [profile.dev.package."*"]

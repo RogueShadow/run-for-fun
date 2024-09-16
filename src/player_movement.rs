@@ -2,8 +2,6 @@ use crate::entities::player::PlayerMarker;
 use crate::*;
 use bevy::math::Vec2;
 use bevy::prelude::*;
-use num_traits::Inv;
-use std::ops::Deref;
 
 #[derive(Debug, Reflect)]
 pub enum Distance {
